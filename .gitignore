@@ -5,4 +5,6 @@
 /rsna2025-effnetv2-32ch
 /shared
 /__pycache__
-__pycache__/
+
+*.pyc
+__pycache__/*
