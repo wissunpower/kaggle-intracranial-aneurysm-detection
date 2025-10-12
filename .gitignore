@@ -1,0 +1,7 @@
+/.mypy_cache
+/.vscode
+/0_reference
+/checkpoints
+/rsna2025-effnetv2-32ch
+/shared
+/__pycache__
