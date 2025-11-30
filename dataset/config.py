@@ -64,7 +64,7 @@ class SeriesDataConfig:
         self.label_weight_priority = self.parse_label_weight_priority(args.label_weight_priority)
 
         self.train_data_indices, self.valid_data_indices \
-            = self.split_data_index_with_fold(args.num_fold) if 0 < args.num_fold \
+            = self.split_data_index_with_fold(args.num_fold) if 1 < args.num_fold \
                 else self.split_data_index()
         
         self.label_auc_weights = [1., 1., 1., 1., 1.,
