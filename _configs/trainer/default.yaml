@@ -1,0 +1,12 @@
+fp16: True
+max_epoch: 8
+
+lr:
+  _target_: utils.optim.LearningRater
+
+  start: 0.00001
+  max: 0.00005 #* strategy.num_replicas_in_sync
+  min: 0.00001
+  rampup_epochs: 5
+  sustain_epochs: 0
+  exp_decay: 0.8

@@ -1,44 +1,52 @@
 
-import argparse
+import os
+import numpy as np
+from omegaconf import DictConfig
+import hydra
+from tqdm.auto import tqdm
 
 import matplotlib.pyplot as plt
 
 import torch
 
-from dataset import *
+from dataset import build_transform, build_dataset
 from dataset.config import SeriesDataConfig
-from evaluator import *
-from utils.metrics import *
-from utils.optim import lrfn
+from evaluator import build_evaluator
+from utils.metrics import weighted_multilabel_auc_for_multiset
+from utils.optim import LearningRater
 
 
 class DetectorTrainer:
-    def __init__(self, args: argparse.Namespace, data_config: SeriesDataConfig, device: torch.device|str
+    def __init__(self, cfg: DictConfig, data_config: SeriesDataConfig, device: torch.device|str
                  , model: torch.nn.Module, fold_index: int):
-        self.args = args
+        self.save_folder = cfg.paths.save_folder
+        self.model_name = cfg.model.backbone.backbone_name
+        self.num_fold = cfg.data.num_fold
+        self.max_epoch = cfg.trainer.max_epoch
         self.device = device
 
         self.data_config = data_config
         self.fold_index = fold_index
 
-        self.transform = build_transform(self.args)
+        self.transform = build_transform(cfg.data.transform)
         self.train_dataset = \
-            build_dataset(self.args, self.data_config, self.fold_index, self.transform, is_train=True)
+            build_dataset(cfg, self.data_config, self.fold_index, self.transform, is_train=True)
         self.train_dataloader = \
-            torch.utils.data.DataLoader(self.train_dataset, self.args.batch_size
+            torch.utils.data.DataLoader(self.train_dataset, cfg.data.batch_size
                                         , shuffle=True, collate_fn=self.train_dataset.collate_fn
                                         , drop_last=True)
         
         self.clip_grad = 35
-        self.grad_scaler = torch.GradScaler(enabled=self.args.fp16)
+        self.grad_scaler = torch.GradScaler(enabled=cfg.trainer.fp16)
 
         self.criterion = torch.nn.BCEWithLogitsLoss().to(device)
         self.optimizer = torch.optim.Adam(model.parameters(), lr=1)
+        lrfn: LearningRater = hydra.utils.instantiate(cfg.trainer.lr)
         self.scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer=self.optimizer, lr_lambda=lrfn)
         # self.scheduler = torch.optim.lr_scheduler.ConstantLR(optimizer=self.optimizer, factor=0.00001
-        #                                                      , total_iters=self.args.max_epoch)
+        #                                                      , total_iters=self.max_epoch)
 
-        self.evaluator = build_evaluator(self.args, self.data_config, self.device, self.fold_index)
+        self.evaluator = build_evaluator(cfg, self.data_config, self.device, self.fold_index)
 
         self.start_epoch = 0
 
@@ -52,15 +60,15 @@ class DetectorTrainer:
         self.train_losses = []
         self.valid_losses = []
 
-        os.makedirs(self.args.save_folder, exist_ok=True)
+        os.makedirs(self.save_folder, exist_ok=True)
 
-        model_save_folder = os.path.join(self.args.save_folder, f'{self.args.model}_{self.data_config.save_start_time_str}')
+        model_save_folder = os.path.join(self.save_folder, f'{self.model_name}_{self.data_config.save_start_time_str}')
         os.makedirs(model_save_folder, exist_ok=True)
 
         self.best_checkpoint_name \
-            = f'best_checkpoint_{self.args.model}_{self.fold_index:02d}_{self.data_config.save_start_time_str}.pth'
+            = f'best_checkpoint_{self.model_name}_{self.fold_index:02d}_{self.data_config.save_start_time_str}.pth'
         
-        for epoch in range(self.start_epoch, self.args.max_epoch):
+        for epoch in range(self.start_epoch, self.max_epoch):
             model.train()
 
             train_loss, train_accuracy = self.train_one_epoch(model, epoch)
@@ -70,7 +78,7 @@ class DetectorTrainer:
             self.train_losses.append(train_loss)
             self.valid_losses.append(valid_loss)
             
-            print(f'Fold {self.fold_index+1}/{self.args.num_fold}, Epoch {epoch+1}/{self.args.max_epoch}:')
+            print(f'Fold {self.fold_index+1}/{self.num_fold}, Epoch {epoch+1}/{self.max_epoch}:')
             print(f'Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy:.4f}')
             print(f'Validation Loss: {valid_loss:.4f}, Validation Accuracy: {valid_accuracy:.4f}')
             
@@ -163,7 +171,7 @@ class DetectorTrainer:
         plt.show()
 
 
-def build_trainer(args: argparse.Namespace, data_config: SeriesDataConfig, device: torch.device|str
+def build_trainer(cfg: DictConfig, data_config: SeriesDataConfig, device: torch.device|str
                   , model: torch.nn.Module, fold_index: int=0) \
     -> DetectorTrainer:
-    return DetectorTrainer(args, data_config, device, model, fold_index)
+    return DetectorTrainer(cfg, data_config, device, model, fold_index)

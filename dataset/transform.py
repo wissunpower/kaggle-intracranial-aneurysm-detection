@@ -1,14 +1,14 @@
 
 import sys, random
 import numpy as np
-import argparse
 
 import albumentations as albu
 
 
 class SeriesTransform:
-    def __init__(self, args: argparse.Namespace):
-        self.args = args
+    def __init__(self, img_size: int, img_crop_size: int):
+        self.img_size = img_size
+        self.img_crop_size = img_crop_size
         self.step_count = 0
         
         self.init_aug_hyper_params()
@@ -22,11 +22,11 @@ class SeriesTransform:
         self.CUT_OUT_AREA_RATE = 0.3
 
     def init_crop(self):
-        crop_min_size = min(self.args.img_size, self.args.img_crop_size)
-        crop_max_size = max(self.args.img_size, self.args.img_crop_size)
+        crop_min_size = min(self.img_size, self.img_crop_size)
+        crop_max_size = max(self.img_size, self.img_crop_size)
 
         self.crop_strides = [int(stride) for stride in range(crop_min_size, crop_max_size + 1, 32)]
-        # self.crop_strides = [self.args.img_crop_size]
+        # self.crop_strides = [self.img_crop_size]
 
         self.update_crop_setting()
     

@@ -2,7 +2,6 @@
 import os, time
 import numpy as np
 import pandas as pd
-import argparse
 
 
 ID_COL = 'SeriesInstanceUID'
@@ -57,14 +56,18 @@ DICOM_TAG_ALLOWLIST = [
 
 
 class SeriesDataConfig:
-    def __init__(self, args: argparse.Namespace):
-        self.data_path = args.data_path
-        self.data_label_df = pd.read_csv(os.path.join(self.data_path, args.label_file_name))
+    def __init__(self
+                 , data_path: str
+                 , label_file_name: str
+                 , label_weight_priority: list[str]
+                 , num_fold: int):
+        self.data_path = data_path
+        self.data_label_df = pd.read_csv(os.path.join(self.data_path, label_file_name))
 
-        self.label_weight_priority = self.parse_label_weight_priority(args.label_weight_priority)
+        self.label_weight_priority = self.parse_label_weight_priority(label_weight_priority)
 
         self.train_data_indices, self.valid_data_indices \
-            = self.split_data_index_with_fold(args.num_fold) if 1 < args.num_fold \
+            = self.split_data_index_with_fold(num_fold) if 1 < num_fold \
                 else self.split_data_index()
         
         self.label_auc_weights = [1., 1., 1., 1., 1.,

@@ -1,6 +1,6 @@
 
 import numpy as np
-import argparse
+from omegaconf import DictConfig
 from tqdm.auto import tqdm
 
 import torch
@@ -11,13 +11,12 @@ from utils.metrics import weighted_multilabel_auc_for_multiset
 
 
 class DicomSeriesEvaluator:
-    def __init__(self, args: argparse.Namespace, data_config: SeriesDataConfig, device: torch.device|str, fold_index: int=0):
-        self.args = args
+    def __init__(self, cfg: DictConfig, data_config: SeriesDataConfig, device: torch.device|str, fold_index: int=0):
         self.data_config = data_config
         self.device = device
         
-        self.valid_dataset = build_dataset(self.args, self.data_config, fold_index)
-        self.valid_dataloader = torch.utils.data.DataLoader(self.valid_dataset, self.args.batch_size)
+        self.valid_dataset = build_dataset(cfg, self.data_config, fold_index)
+        self.valid_dataloader = torch.utils.data.DataLoader(self.valid_dataset, cfg.data.batch_size)
         
         self.best_valid_loss = float('inf')
         self.prev_best_valid_loss = float('inf')

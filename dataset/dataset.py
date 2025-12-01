@@ -1,25 +1,26 @@
 
 import os
 import numpy as np
-import argparse
+from omegaconf import DictConfig
 
 import torch
 
 from dataset.config import SeriesDataConfig
+from dataset.transform import SeriesTransform
 
 
 class DICOMDataset(torch.utils.data.Dataset):
-    def __init__(self, args: argparse.Namespace, data_config: SeriesDataConfig
-                 , df_indices: np.ndarray, transform: object | None=None):
-        self.input_channels = args.input_channels
-        self.max_image_size = args.img_size
+    def __init__(self, cfg: DictConfig, data_config: SeriesDataConfig
+                 , df_indices: np.ndarray, transform: SeriesTransform|None=None):
+        self.input_channels = cfg.data.input_channels
+        self.max_image_size = cfg.data.img_size
         self.data_config = data_config
         self.df_indices = df_indices
         self.transform = transform
 
         self.scan_df()
         
-        self.raw_data_root_path = os.path.join(args.data_path, args.preprocess_data_folder_name)
+        self.raw_data_root_path = os.path.join(cfg.paths.data_root_dir, cfg.data.preprocess_data_folder_name)
         
         if not os.path.exists(self.raw_data_root_path):
             print(f'Not found raw data(npz image files) path'

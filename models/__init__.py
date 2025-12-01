@@ -1,10 +1,9 @@
 
-import argparse
+from omegaconf import DictConfig
+import hydra
 
 import torch
 
-from models.classifier import DiseaseDetector
 
-
-def build_model(args: argparse.Namespace, num_classes: int) -> list[torch.nn.Module]:
-    return [DiseaseDetector(args.model, args.input_channels, num_classes) for _ in range(args.num_fold)]
+def build_model(cfg: DictConfig) -> list[torch.nn.Module]:
+    return [hydra.utils.instantiate(cfg.model.backbone) for _ in range(cfg.data.num_fold)]

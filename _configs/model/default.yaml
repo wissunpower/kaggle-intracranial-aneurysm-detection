@@ -1,0 +1,6 @@
+backbone:
+  _target_: models.classifier.DiseaseDetector
+
+  backbone_name: resnet18
+  in_channels: ${data.input_channels}
+  num_classes: ${data.num_classes}

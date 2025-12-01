@@ -1,0 +1,5 @@
+data_root_dir: F:/ml_data_resource/kaggle/intracranial_aneurysm_detection/
+
+result_dir: ./_results
+
+save_folder: ./checkpoints/

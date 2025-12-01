@@ -1,13 +1,14 @@
 
-import sys, os
+import os
 import argparse
 import numpy as np
 import pandas as pd
 import glob
 
-from tqdm.auto import tqdm
+from omegaconf import DictConfig
+import hydra
 
-import torch
+from tqdm.auto import tqdm
 
 from dataset.config import SeriesDataConfig
 from dataset.dataset import DICOMDataset
@@ -15,20 +16,20 @@ from dataset.transform import SeriesTransform
 from dataset.preprocessor import DICOMPreprocessor
 
 
-def build_dataset(args: argparse.Namespace, data_config: SeriesDataConfig, fold_index: int=0
-                  , transform: object=None, is_train: bool=False) -> DICOMDataset:
+def build_dataset(cfg: DictConfig, data_config: SeriesDataConfig, fold_index: int=0
+                  , transform: SeriesTransform| None=None, is_train: bool=False) -> DICOMDataset:
     data_indices = data_config.train_data_indices[fold_index] if is_train \
         else data_config.valid_data_indices[fold_index]
-    return DICOMDataset(args, data_config, data_indices, transform=transform)
+    return DICOMDataset(cfg, data_config, data_indices, transform=transform)
 
-def build_transform(args: argparse.Namespace) -> object:
-    return SeriesTransform(args)
+def build_transform(cfg_data_transform: DictConfig) -> SeriesTransform:
+    return hydra.utils.instantiate(cfg_data_transform)
 
-def build_raw_data(args: argparse.Namespace):
-    data_root_path = args.data_path
-    label_path = os.path.join(data_root_path, args.label_file_name)
-    series_root_path = os.path.join(data_root_path, 'series/')
-    raw_data_root_path = os.path.join(data_root_path, args.preprocess_data_folder_name)
+def build_raw_data(cfg: DictConfig):
+    data_root_path = cfg.paths.data_root_dir
+    label_path = os.path.join(data_root_path, cfg.data.label_file_name)
+    series_root_path = os.path.join(data_root_path, cfg.data.series_data_folder_name)
+    raw_data_root_path = os.path.join(data_root_path, cfg.data.preprocess_data_folder_name)
 
     label_df = pd.read_csv(label_path)
 
@@ -38,7 +39,7 @@ def build_raw_data(args: argparse.Namespace):
 
     os.makedirs(raw_data_root_path, exist_ok=True)
 
-    preprocessor = DICOMPreprocessor((args.input_channels, args.img_size, args.img_size))
+    preprocessor = DICOMPreprocessor((cfg.data.input_channels, cfg.data.img_size, cfg.data.img_size))
 
     for paht_index, path_value in enumerate(os.walk(series_root_path)):
         root, folders, files = path_value
