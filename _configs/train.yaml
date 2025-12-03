@@ -2,6 +2,7 @@ defaults:
   - _self_
   - data: default
   - model: default
+  - monitor: wandb
   - trainer: default
   - paths: default
   - hydra: default

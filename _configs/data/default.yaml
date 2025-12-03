@@ -4,6 +4,7 @@ preprocess_data_folder_name: raw_data/
 
 num_classes: 14
 num_fold: 1
+current_fold: 0
 input_channels: 32
 img_size: 416
 img_crop_size: 224

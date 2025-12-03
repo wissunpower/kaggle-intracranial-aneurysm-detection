@@ -5,6 +5,7 @@ from omegaconf import DictConfig
 import hydra
 from tqdm.auto import tqdm
 
+import wandb
 import matplotlib.pyplot as plt
 
 import torch
@@ -82,6 +83,15 @@ class DetectorTrainer:
             logger.info(f'Fold {self.fold_index+1}/{self.num_fold}, Epoch {epoch+1}/{self.max_epoch}:')
             logger.info(f'Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy:.4f}')
             logger.info(f'Validation Loss: {valid_loss:.4f}, Validation Accuracy: {valid_accuracy:.4f}')
+
+            wandb.log(
+                {
+                    "train_loss": train_loss,
+                    "train_acc": train_accuracy,
+                    "valid_loss": valid_loss,
+                    "valid_acc": valid_accuracy,
+                }
+                , step=epoch+1)
             
             if self.evaluator.update_best_valid_loss(valid_loss):
                 logger.info(f'Validation loss improved from {self.evaluator.prev_best_valid_loss:.4f} '

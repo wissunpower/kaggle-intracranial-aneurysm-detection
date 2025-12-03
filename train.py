@@ -29,6 +29,8 @@ def train(cfg: DictConfig):
 
     models = build_model(cfg)
 
+    hydra.utils.instantiate(cfg.monitor)
+
     for fold_index, model in enumerate(models):
         model = model.to(device)
         
