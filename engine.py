@@ -12,6 +12,7 @@ import torch
 from dataset import build_transform, build_dataset
 from dataset.config import SeriesDataConfig
 from evaluator import build_evaluator
+from utils.log import logger
 from utils.metrics import weighted_multilabel_auc_for_multiset
 from utils.optim import LearningRater
 
@@ -78,14 +79,14 @@ class DetectorTrainer:
             self.train_losses.append(train_loss)
             self.valid_losses.append(valid_loss)
             
-            print(f'Fold {self.fold_index+1}/{self.num_fold}, Epoch {epoch+1}/{self.max_epoch}:')
-            print(f'Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy:.4f}')
-            print(f'Validation Loss: {valid_loss:.4f}, Validation Accuracy: {valid_accuracy:.4f}')
+            logger.info(f'Fold {self.fold_index+1}/{self.num_fold}, Epoch {epoch+1}/{self.max_epoch}:')
+            logger.info(f'Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy:.4f}')
+            logger.info(f'Validation Loss: {valid_loss:.4f}, Validation Accuracy: {valid_accuracy:.4f}')
             
             if self.evaluator.update_best_valid_loss(valid_loss):
-                print(f'Validation loss improved from {self.evaluator.prev_best_valid_loss:.4f} '
+                logger.info(f'Validation loss improved from {self.evaluator.prev_best_valid_loss:.4f} '
                       f'to {self.evaluator.best_valid_loss:.4f}.')
-                print('Save checkpoint.')
+                logger.info('Save checkpoint.')
                 torch.save(model.state_dict(), os.path.join(model_save_folder, self.best_checkpoint_name))
 
     def eval(self, model: torch.nn.Module) -> tuple[float, float]:

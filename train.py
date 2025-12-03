@@ -4,6 +4,7 @@ import torch
 from omegaconf import DictConfig
 import hydra
 
+from utils.log import logger
 from utils.misc import fix_random_seed
 from dataset import build_raw_data
 from dataset.config import SeriesDataConfig
@@ -12,11 +13,12 @@ from engine import build_trainer
 
 
 def train(cfg: DictConfig):
-    print("Setting Configuration.. : ", cfg)
+    logger.info("Setting Configuration.. : ")
+    logger.info(cfg)
     print("----------------------------------------------------------")
 
     device = torch.device(torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else 'cpu')
-    print(f'device: {device}')
+    logger.info(f'device: {device}')
 
     if cfg.get("seed"):
         fix_random_seed(cfg.seed)
