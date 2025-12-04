@@ -10,3 +10,8 @@ lr:
   rampup_epochs: 5
   sustain_epochs: 0
   exp_decay: 0.8
+
+ema:
+  enable: true
+  decay: 0.9999
+  update_start_step: 0

@@ -9,6 +9,7 @@ import wandb
 import matplotlib.pyplot as plt
 
 import torch
+from timm.utils import ModelEmaV3
 
 from dataset import build_transform, build_dataset
 from dataset.config import SeriesDataConfig
@@ -49,6 +50,12 @@ class DetectorTrainer:
         #                                                      , total_iters=self.max_epoch)
 
         self.evaluator = build_evaluator(cfg, self.data_config, self.device, self.fold_index)
+        
+        self.model_ema: ModelEmaV3|None = None
+        self.ema_update_start_step: int = 0
+        if cfg.trainer.get('ema') and cfg.trainer.ema.get('enable') and cfg.trainer.ema.enable:
+            self.model_ema = ModelEmaV3(model, decay=cfg.trainer.ema.decay, device=self.device)
+            self.ema_update_start_step = cfg.trainer.ema.update_start_step
 
         self.start_epoch = 0
 
@@ -100,10 +107,11 @@ class DetectorTrainer:
                 torch.save(model.state_dict(), os.path.join(model_save_folder, self.best_checkpoint_name))
 
     def eval(self, model: torch.nn.Module) -> tuple[float, float]:
-        model.eval()
+        model_eval = model if self.model_ema is None else self.model_ema
+        model_eval.eval()
         
         # Evaluate
-        valid_loss, valid_accuracy = self.evaluator.evaluate(model, self.criterion)
+        valid_loss, valid_accuracy = self.evaluator.evaluate(model_eval, self.criterion)
 
         return valid_loss, valid_accuracy
 
@@ -112,11 +120,14 @@ class DetectorTrainer:
         train_logits: list[np.ndarray] = []
         train_labels: list[np.ndarray] = []
 
+        epoch_size = len(self.train_dataloader)
         optimizer_step_skip_start_batch_index = int(-1)
         grad_norm_isnan = False
         grad_norm_isinf = False
 
         for batch_index, batch_data in enumerate(tqdm(self.train_dataloader)):
+            forward_step = batch_index + (epoch * epoch_size)
+
             images, labels = batch_data
             images = images.to(self.device)
             labels = labels.to(self.device)
@@ -142,6 +153,9 @@ class DetectorTrainer:
             self.grad_scaler.step(self.optimizer)
             self.grad_scaler.update()
             self.optimizer.zero_grad()
+
+            if forward_step >= self.ema_update_start_step:
+                self.model_ema.update(model)
 
             # min_scale = 128
             # if self.grad_scaler._scale < min_scale:
