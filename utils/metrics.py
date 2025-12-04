@@ -79,6 +79,30 @@ def calculate_logits_accuracy(preds: np.ndarray, labels: np.ndarray
 
     return accuracy
 
+def _safe_roc_auc(y_true: np.ndarray, y_score: np.ndarray, average=None) -> float:
+    """Return 0.5 when class has only positives or only negatives (avoid exceptions)"""
+    try:
+        if np.unique(y_true).size < 2:
+            return 0.5
+        return float(roc_auc_score(y_true, y_score, average=average))
+    except Exception:
+        return 0.5
+
+def compute_final_score(y_true: np.ndarray, y_prob: np.ndarray) -> float:
+    """Final = 0.5 * ( AUC_AP + mean(13 location AUCs) )"""
+
+    num_class: int = y_true.shape[-1]
+    loc_idx = list(range(num_class - 1))
+    ap_idx = num_class - 1
+    
+    auc_loc = [_safe_roc_auc(y_true[:, i], y_prob[:, i]) for i in loc_idx]
+    auc_ap = _safe_roc_auc(y_true[:, ap_idx], y_prob[:, ap_idx])
+    mean_loc = float(np.mean(auc_loc)) if len(auc_loc) > 0 else 0.5
+    final_score = 0.5 * (auc_ap + mean_loc)
+    
+    return final_score
+
+
 def weighted_multilabel_auc(
     y_true: np.ndarray,
     y_scores: np.ndarray,
@@ -106,13 +130,13 @@ def weighted_multilabel_auc(
     ValueError
         If any class does not have both positive and negative samples
     """
-    y_true = np.asarray(y_true)
-    y_scores = np.asarray(y_scores)
     n_classes = y_true.shape[-1]
+    y_true = np.asarray(y_true).reshape(-1)
+    y_scores = np.asarray(y_scores).reshape(-1)
 
     # Get AUC for each class
     try:
-        individual_aucs = roc_auc_score(y_true, y_scores, average=None)
+        individual_aucs = _safe_roc_auc(y_true, y_scores, average=None)
     except ValueError:
         raise ParticipantVisibleError(
             'AUC could not be calculated from given predictions.'

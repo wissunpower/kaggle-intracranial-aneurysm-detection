@@ -14,7 +14,7 @@ from dataset import build_transform, build_dataset
 from dataset.config import SeriesDataConfig
 from evaluator import build_evaluator
 from utils.log import logger
-from utils.metrics import weighted_multilabel_auc_for_multiset
+from utils.metrics import compute_final_score
 from utils.optim import LearningRater
 
 
@@ -109,8 +109,8 @@ class DetectorTrainer:
 
     def train_one_epoch(self, model: torch.nn.Module, epoch: int) -> tuple[float, float]:
         train_loss = 0
-        train_correct = 0
-        train_total = 0
+        train_logits: list[np.ndarray] = []
+        train_labels: list[np.ndarray] = []
 
         optimizer_step_skip_start_batch_index = int(-1)
         grad_norm_isnan = False
@@ -148,17 +148,17 @@ class DetectorTrainer:
             #     self.grad_scaler._scale = torch.tensor(min_scale).to(self.grad_scaler._scale)
             
             train_loss += cost.item()
-            current_accuracies = weighted_multilabel_auc_for_multiset(
-                                labels.detach().cpu().numpy(),
-                                pred.sigmoid().detach().cpu().numpy(),
-                                self.data_config.label_auc_weights)
-            train_correct += np.sum(current_accuracies)
-            train_total += len(current_accuracies)
+            train_labels.append(labels.detach().cpu().numpy())
+            train_logits.append(pred.sigmoid().detach().cpu().numpy())
 
             # if batch_index > 4:
             #     break
         
-        train_accuracy = train_correct / train_total
+        train_accuracy: float = 0
+        if 0 < len(train_labels) and 0 < len(train_logits):
+            train_y_true = np.concatenate(train_labels, axis=0)
+            train_y_score = np.concatenate(train_logits, axis=0)
+            train_accuracy = compute_final_score(train_y_true, train_y_score)
         train_loss /= len(self.train_dataloader)
 
         self.scheduler.step()

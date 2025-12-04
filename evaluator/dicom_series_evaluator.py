@@ -7,7 +7,7 @@ import torch
 
 from dataset import build_dataset
 from dataset.config import SeriesDataConfig
-from utils.metrics import weighted_multilabel_auc_for_multiset
+from utils.metrics import compute_final_score
 
 
 class DicomSeriesEvaluator:
@@ -24,8 +24,8 @@ class DicomSeriesEvaluator:
     def evaluate(self, model: torch.nn.Module, criterion: torch.nn.Module|None) -> tuple[float, float]:
         # Validation
         valid_loss = 0
-        valid_correct = 0
-        valid_total = 0
+        valid_logits: list[np.ndarray] = []
+        valid_labels: list[np.ndarray] = []
         
         model.eval()
         with torch.no_grad():
@@ -40,17 +40,17 @@ class DicomSeriesEvaluator:
                     loss = criterion(logits, labels)
                     valid_loss += loss.item()
                 
-                current_accuracies = weighted_multilabel_auc_for_multiset(
-                                    labels.detach().cpu().numpy(),
-                                    logits.sigmoid().detach().cpu().numpy(),
-                                    self.data_config.label_auc_weights)
-                valid_correct += np.sum(current_accuracies)
-                valid_total += len(current_accuracies)
+                valid_labels.append(labels.detach().cpu().numpy())
+                valid_logits.append(logits.sigmoid().detach().cpu().numpy())
                 
                 # if batch_index > 4:
                 #     break
         
-        valid_accuracy = valid_correct / valid_total
+        valid_accuracy: float = 0
+        if 0 < len(valid_labels) and 0 < len(valid_logits):
+            valid_y_true = np.concatenate(valid_labels, axis=0)
+            valid_y_score = np.concatenate(valid_logits, axis=0)
+            valid_accuracy = compute_final_score(valid_y_true, valid_y_score)
         valid_loss /= len(self.valid_dataloader)
         
         return valid_loss, valid_accuracy
