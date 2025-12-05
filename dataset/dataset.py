@@ -43,8 +43,8 @@ class DICOMDataset(torch.utils.data.Dataset):
     def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
         image, multi_label = self.get_raw_data(index)
 
-        if self.transform is not None:
-            image = self.transform(image)
+        # if self.transform is not None:
+        #     image = self.transform(image)
         
         image = torch.from_numpy(image).contiguous().float() / 255.
         label = torch.from_numpy(multi_label).float()
