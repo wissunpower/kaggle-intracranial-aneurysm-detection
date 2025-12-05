@@ -154,7 +154,7 @@ class DetectorTrainer:
             self.grad_scaler.update()
             self.optimizer.zero_grad()
 
-            if forward_step >= self.ema_update_start_step:
+            if self.model_ema is not None and forward_step >= self.ema_update_start_step:
                 self.model_ema.update(model)
 
             # min_scale = 128
