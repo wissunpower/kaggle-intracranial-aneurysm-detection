@@ -9,7 +9,7 @@ import wandb
 import matplotlib.pyplot as plt
 
 import torch
-from timm.utils import ModelEmaV3
+from timm.utils.model_ema import ModelEmaV3
 
 from dataset import build_transform, build_dataset
 from dataset.config import SeriesDataConfig
@@ -31,13 +31,12 @@ class DetectorTrainer:
         self.data_config = data_config
         self.fold_index = fold_index
 
-        self.transform = build_transform(cfg.data.transform)
+        transform = build_transform(cfg.data.nifti_transform)
         self.train_dataset = \
-            build_dataset(cfg, self.data_config, self.fold_index, self.transform, is_train=True)
+            build_dataset(cfg, self.data_config, self.fold_index, transform, is_train=True)
         self.train_dataloader = \
             torch.utils.data.DataLoader(self.train_dataset, cfg.data.batch_size
-                                        , shuffle=True, collate_fn=self.train_dataset.collate_fn
-                                        , drop_last=True)
+                                        , shuffle=True, drop_last=True)
         
         self.clip_grad = 35
         self.grad_scaler = torch.GradScaler(enabled=cfg.trainer.fp16)

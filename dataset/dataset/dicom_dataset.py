@@ -6,7 +6,7 @@ from omegaconf import DictConfig
 import torch
 
 from dataset.config import SeriesDataConfig
-from dataset.transform import SeriesTransform
+from dataset.transform.series_transform import SeriesTransform
 
 
 class DICOMDataset(torch.utils.data.Dataset):

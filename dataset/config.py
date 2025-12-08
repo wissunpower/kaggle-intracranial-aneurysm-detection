@@ -2,6 +2,7 @@
 import os, time
 import numpy as np
 import pandas as pd
+import glob
 
 
 ID_COL = 'SeriesInstanceUID'
@@ -58,10 +59,12 @@ DICOM_TAG_ALLOWLIST = [
 class SeriesDataConfig:
     def __init__(self
                  , data_path: str
+                 , niix_path: str
                  , label_file_name: str
                  , label_weight_priority: list[str]
                  , num_fold: int):
         self.data_path = data_path
+        self.niix_path = niix_path
         self.data_label_df = pd.read_csv(os.path.join(self.data_path, label_file_name))
 
         self.label_weight_priority = self.parse_label_weight_priority(label_weight_priority)
@@ -108,13 +111,29 @@ class SeriesDataConfig:
         
         return weight_priority
 
+    def get_excepted_indices(self) -> np.ndarray:
+        indices = list[int]()
+
+        for index, row in self.data_label_df.iterrows():
+            nifti_file_name_pattern = os.path.join(self.niix_path, str(row.iloc[0]), '*.nii.gz')
+            nifti_files = glob.glob(nifti_file_name_pattern)
+            if 0 < len(nifti_files):
+                continue
+            
+            indices.append(index)
+
+        return np.array(indices)
+
     def split_data_index_with_fold(self, num_fold: int=1) -> tuple[list[np.ndarray], list[np.ndarray]]:
         num_data = len(self.data_label_df)
 
         data_label_np = self.data_label_df.to_numpy()
         column_start_index = 4
         total_indices = np.arange(num_data)
+
+        excepted_indices = self.get_excepted_indices()
         selected_mask = np.full(num_data, False)
+        selected_mask[excepted_indices] = True
 
         indices_folds = [[] for _ in range(num_fold)]
 
@@ -159,7 +178,8 @@ class SeriesDataConfig:
             
             assert len(train_indices) == len(np.unique(train_indices)), 'Duplicate train index exists.'
             assert len(valid_indices) == len(np.unique(valid_indices)), 'Duplicate valid index exists.'
-            assert len(valid_indices) + len(train_indices) == num_data, 'Missing index exists.'
+            assert len(valid_indices) + len(train_indices) == (num_data - len(excepted_indices)) \
+                , 'Missing index exists.'
         
         return total_train_indices, total_valid_indices
 
@@ -170,7 +190,10 @@ class SeriesDataConfig:
         data_label_np = self.data_label_df.to_numpy()
         column_start_index = 4
         total_indices = np.arange(num_data)
+
+        excepted_indices = self.get_excepted_indices()
         selected_mask = np.full(num_data, False)
+        selected_mask[excepted_indices] = True
 
         train_indices = []
         valid_indices = []
@@ -199,6 +222,7 @@ class SeriesDataConfig:
 
         assert len(train_indices) == len(np.unique(train_indices)), 'Duplicate train index exists.'
         assert len(valid_indices) == len(np.unique(valid_indices)), 'Duplicate valid index exists.'
-        assert len(valid_indices) + len(train_indices) == num_data, 'Missing index exists.'
+        assert len(valid_indices) + len(train_indices) == (num_data - len(excepted_indices)) \
+            , 'Missing index exists.'
         
         return [np.array(train_indices)], [np.array(valid_indices)]

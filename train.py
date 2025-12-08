@@ -22,8 +22,6 @@ def train(cfg: DictConfig):
 
     if cfg.get("seed"):
         fix_random_seed(cfg.seed)
-    
-    build_raw_data(cfg)
 
     data_config: SeriesDataConfig = hydra.utils.instantiate(cfg.data.config)
 

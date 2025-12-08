@@ -11,19 +11,26 @@ import hydra
 from tqdm.auto import tqdm
 
 from dataset.config import SeriesDataConfig
-from dataset.dataset import DICOMDataset
-from dataset.transform import SeriesTransform
+from dataset.transform import SeriesTransform, NiftiTransform
+from dataset.dataset import DICOMDataset, NiftiDataset
 from dataset.preprocessor import DICOMPreprocessor
 
 
 def build_dataset(cfg: DictConfig, data_config: SeriesDataConfig, fold_index: int=0
-                  , transform: SeriesTransform| None=None, is_train: bool=False) -> DICOMDataset:
+                  , transform: NiftiTransform|None=None, is_train: bool=False
+                  ) -> NiftiDataset:
     data_indices = data_config.train_data_indices[fold_index] if is_train \
         else data_config.valid_data_indices[fold_index]
-    return DICOMDataset(cfg, data_config, data_indices, transform=transform)
+    
+    return hydra.utils.instantiate(
+        cfg.data.nifti_train_dataset
+        , df_indices=data_indices
+        , label_df=data_config.data_label_df
+        , transform=transform
+        )
 
-def build_transform(cfg_data_transform: DictConfig) -> SeriesTransform:
-    return hydra.utils.instantiate(cfg_data_transform)
+def build_transform(data_transform_cfg: DictConfig) -> NiftiTransform:
+    return hydra.utils.instantiate(data_transform_cfg)
 
 def build_raw_data(cfg: DictConfig):
     data_root_path = cfg.paths.data_root_dir

@@ -5,7 +5,7 @@ from tqdm.auto import tqdm
 
 import torch
 
-from dataset import build_dataset
+from dataset import build_transform, build_dataset
 from dataset.config import SeriesDataConfig
 from utils.metrics import compute_final_score
 
@@ -15,7 +15,8 @@ class DicomSeriesEvaluator:
         self.data_config = data_config
         self.device = device
         
-        self.valid_dataset = build_dataset(cfg, self.data_config, fold_index)
+        transform = build_transform(cfg.data.nifti_transform)
+        self.valid_dataset = build_dataset(cfg, self.data_config, fold_index, transform)
         self.valid_dataloader = torch.utils.data.DataLoader(self.valid_dataset, cfg.data.batch_size)
         
         self.best_valid_loss = float('inf')
