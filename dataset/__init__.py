@@ -12,8 +12,14 @@ from tqdm.auto import tqdm
 
 from dataset.config import SeriesDataConfig
 from dataset.transform import SeriesTransform, NiftiTransform
-from dataset.dataset import DICOMDataset, NiftiDataset
+from dataset.dataset import (
+    DICOMDataset,
+    NiftiDataset,
+    VesselSegmentDataset,
+)
 from dataset.preprocessor import DICOMPreprocessor
+
+from dataset.manager import VesselSegmentDataManager
 
 
 def build_dataset(cfg: DictConfig, data_config: SeriesDataConfig, fold_index: int=0

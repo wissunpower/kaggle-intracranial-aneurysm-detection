@@ -4,6 +4,7 @@ import torch
 
 from dataset.config import SeriesDataConfig
 from evaluator.dicom_series_evaluator import DicomSeriesEvaluator
+from evaluator.vessel_segment_evaluator import VesselSegmentEvaluator
 
 
 def build_evaluator(cfg: DictConfig, data_config: SeriesDataConfig

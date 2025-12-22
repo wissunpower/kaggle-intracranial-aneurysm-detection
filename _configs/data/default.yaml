@@ -13,6 +13,27 @@ batch_size: 16
 volume_depth: 96
 volume_input_size: [96, 192, 192]
 
+
+common:
+  label_file_path: ${paths.data_root_dir}${data.label_file_name}
+  label_class_names: [
+    'Left Infraclinoid Internal Carotid Artery',
+    'Right Infraclinoid Internal Carotid Artery',
+    'Left Supraclinoid Internal Carotid Artery',
+    'Right Supraclinoid Internal Carotid Artery',
+    'Left Middle Cerebral Artery',
+    'Right Middle Cerebral Artery',
+    'Anterior Communicating Artery',
+    'Left Anterior Cerebral Artery',
+    'Right Anterior Cerebral Artery',
+    'Left Posterior Communicating Artery',
+    'Right Posterior Communicating Artery',
+    'Basilar Tip',
+    'Other Posterior Circulation',
+    'Aneurysm Present',
+  ]
+
+
 config:
   _target_: dataset.SeriesDataConfig
 
@@ -45,3 +66,36 @@ nifti_valid_dataset:
   _target_: dataset.NiftiDataset
 
   niix_path: ${data.niix_path}
+
+
+vessel_segment:
+  _target_: dataset.VesselSegmentDataManager
+
+  volumes_path: ${paths.data_root_dir}segmentations_preprocessed/imagesTr
+  labels_path: ${paths.data_root_dir}segmentations_preprocessed/labelsTr
+  num_fold: 1
+  batch_size: 1
+  volume_input_size: [64, 128, 128]
+  num_mask_classes: 14
+  
+  transform:
+    _target_: dataset.NiftiTransform
+  
+    augmentations:
+      random_crop:
+        _target_: dataset.transform.augmentations.VolumeRandomCrop
+        target_shape: ${data.vessel_segment.volume_input_size}
+  
+  train_dataset:
+    _target_: dataset.VesselSegmentDataset
+    
+    label_class_names: ${data.common.label_class_names}
+    volumes_path: ${data.vessel_segment.volumes_path}
+    labels_path: ${data.vessel_segment.labels_path}
+  
+  valid_dataset:
+    _target_: dataset.VesselSegmentDataset
+    
+    label_class_names: ${data.common.label_class_names}
+    volumes_path: ${data.vessel_segment.volumes_path}
+    labels_path: ${data.vessel_segment.labels_path}

@@ -1,3 +1,5 @@
+# @package _global_
+
 defaults:
   - _self_
   - data: default
@@ -12,6 +14,6 @@ seed: 42
 
 experiment_name: "default"
 
-train_target: ""
+train_target: vessel_seg_roi
 
 result_dir: ${paths.result_dir}/${experiment_name}
