@@ -37,3 +37,18 @@ vessel_segment:
       nonlin_kwargs:
         inplace: True
       deep_supervision: True
+
+
+vessel_roi_bbox:
+  _target_: models.VesselROIBBoxExtractor
+
+  depth_size: 48
+
+  backbone:
+    target_type: timm.create_model
+    kwargs:
+      model_name: vit_small_plus_patch16_dinov3.lvd1689m
+      pretrained: False
+      in_chans: 3
+      global_pool: ''
+      num_classes: 0

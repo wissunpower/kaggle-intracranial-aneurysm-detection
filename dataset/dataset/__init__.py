@@ -1,3 +1,4 @@
 from dataset.dataset.dicom_dataset import DICOMDataset
 from dataset.dataset.nifti_dataset import NiftiDataset
 from dataset.dataset.vessel_segment_dataset import VesselSegmentDataset
+from dataset.dataset.vessel_roi_bbox_dataset import VesselROIBBoxDataset

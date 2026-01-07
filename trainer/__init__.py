@@ -1,2 +1,3 @@
 
 from trainer.vessel_segment_trainer import VesselSegmentTrainer
+from trainer.vessel_roi_bbox_trainer import VesselROIBBoxTrainer

@@ -1,0 +1,19 @@
+# @package _global_
+
+defaults:
+  - _self_
+  - data: default
+  - model: default
+  - monitor: wandb
+  - trainer: default
+  - paths: default
+  - hydra: default
+  - experiment: null
+
+seed: 42
+
+experiment_name: "default"
+
+train_target: vessel_roi_bbox
+
+result_dir: ${paths.result_dir}/${experiment_name}

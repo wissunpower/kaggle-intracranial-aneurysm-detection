@@ -16,10 +16,14 @@ from dataset.dataset import (
     DICOMDataset,
     NiftiDataset,
     VesselSegmentDataset,
+    VesselROIBBoxDataset,
 )
 from dataset.preprocessor import DICOMPreprocessor
 
-from dataset.manager import VesselSegmentDataManager
+from dataset.manager import (
+    VesselSegmentDataManager,
+    VesselROIBBoxDataManager,
+)
 
 
 def build_dataset(cfg: DictConfig, data_config: SeriesDataConfig, fold_index: int=0

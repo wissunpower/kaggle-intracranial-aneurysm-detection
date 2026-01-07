@@ -52,3 +52,37 @@ vessel_segment:
     enable: true
     decay: 0.9999
     update_start_step: 0
+
+
+vessel_roi_bbox:
+  _target_: trainer.VesselROIBBoxTrainer
+
+  fold_index: 0
+  fp16: True
+  grad_norm_clip_max: 35
+  max_epoch: 20
+  save_path: ${paths.save_folder}
+
+  optimizer:
+    target_type: torch.optim.AdamW
+    kwargs:
+      lr: 3e-4
+      weight_decay: 1e-6
+      fused: True
+
+  lr_scheduler:
+    target_type: transformers.get_cosine_schedule_with_warmup
+    kwargs:
+      # num_training_steps: ${len(train_loader)} * ${trainer.vessel_roi_bbox.max_epoch} * 1.6
+      num_training_steps: ${eval:45 * ${trainer.vessel_roi_bbox.max_epoch} * 1.6}
+      # num_training_steps: 1440
+      num_warmup_steps: 0
+  
+  criterion:
+    mae:
+      _target_: torch.nn.L1Loss
+  
+  ema:
+    enable: true
+    decay: 0.9999
+    update_start_step: 0

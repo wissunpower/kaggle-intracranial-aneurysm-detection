@@ -99,3 +99,28 @@ vessel_segment:
     label_class_names: ${data.common.label_class_names}
     volumes_path: ${data.vessel_segment.volumes_path}
     labels_path: ${data.vessel_segment.labels_path}
+
+
+vessel_roi_bbox:
+  _target_: dataset.VesselROIBBoxDataManager
+
+  metadata_file_path: ${paths.data_root_dir}segmentations_window1.csv
+  num_fold: 1
+  batch_size: 4
+  num_series_slide: 48
+  depth_size: 3
+  image_size: [128, 128]
+
+  train_dataset:
+    _target_: dataset.VesselROIBBoxDataset
+    
+    num_series_slide: ${data.vessel_roi_bbox.num_series_slide}
+    depth_size: ${data.vessel_roi_bbox.depth_size}
+    image_size: ${data.vessel_roi_bbox.image_size}
+  
+  valid_dataset:
+    _target_: dataset.VesselROIBBoxDataset
+    
+    num_series_slide: ${data.vessel_roi_bbox.num_series_slide}
+    depth_size: ${data.vessel_roi_bbox.depth_size}
+    image_size: ${data.vessel_roi_bbox.image_size}
