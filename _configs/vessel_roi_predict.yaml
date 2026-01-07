@@ -1,0 +1,22 @@
+# @package _global_
+
+defaults:
+  - _self_
+  - data: default
+  - model: default
+  - paths: default
+  - hydra: default
+
+experiment_name: predict_vessel_roi
+
+train_target: ""
+
+predict:
+  _target_: dataset.preprocess.VesselROIBBoxPredictor
+
+  data_root_path: ${paths.data_root_dir}
+  input_data_path: F:/ml_data_resource/kaggle/intracranial_aneurysm_detection/train_windows1_test1/
+  batch_size: 4
+  load_model_path: ./_results/00_02_03_add_vessel_roi_bbox_extract_stage/checkpoints/vesselroibboxextractor_20260106_140118/best_checkpoint_vesselroibboxextractor_00_20260106_140118.pth
+
+result_dir: ${paths.result_dir}/${experiment_name}
