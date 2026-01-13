@@ -15,6 +15,10 @@ EVAL_RESOLVER_NAME = "eval"
 if not OmegaConf.has_resolver(EVAL_RESOLVER_NAME):
     OmegaConf.register_new_resolver(EVAL_RESOLVER_NAME, eval)
 
+LEN_RESOLVER_NAME = "len"
+if not OmegaConf.has_resolver(LEN_RESOLVER_NAME):
+    OmegaConf.register_new_resolver(LEN_RESOLVER_NAME, len)
+
 from utils.log import logger
 from utils.misc import fix_random_seed
 
