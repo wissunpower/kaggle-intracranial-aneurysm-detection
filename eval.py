@@ -11,7 +11,7 @@ import polars as pl
 import torch
 
 from utils.misc import parse_args
-from dataset.config import NUM_CLASSES, SeriesDataConfig
+from dataset.manager.classifier import NUM_CLASSES, SeriesDataManager
 from dataset.preprocessor import DICOMPreprocessor
 from models import build_model
 from evaluator import build_evaluator
@@ -66,7 +66,7 @@ DICOM_TAG_ALLOWLIST = [
 ]
 
 
-def test(args: argparse.Namespace, data_config: SeriesDataConfig, model: torch.nn.Module
+def test(args: argparse.Namespace, data_config: SeriesDataManager, model: torch.nn.Module
          , device: torch.device):
     evaluator = build_evaluator(args, data_config, device)
     
@@ -82,7 +82,7 @@ def test(args: argparse.Namespace, data_config: SeriesDataConfig, model: torch.n
 #     device = torch.device(torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else 'cpu')
 #     print(f'device: {device}')
 
-#     data_config = SeriesDataConfig(args)
+#     data_config = SeriesDataManager(args)
 
 #     model = build_model(args, NUM_CLASSES)
 #     model.load_state_dict(torch.load(args.model_weight_path))
@@ -98,7 +98,7 @@ print("----------------------------------------------------------")
 device = torch.device(torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else 'cpu')
 print(f'device: {device}')
 
-data_config = SeriesDataConfig(args)
+data_config = SeriesDataManager(args)
 
 assert os.path.exists(args.model_weight_path), 'Not exist model weight path.'
 assert len(glob.glob(args.model_weight_path + '*.pth')) == args.num_fold, \

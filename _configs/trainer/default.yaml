@@ -1,20 +1,38 @@
-fp16: True
-max_epoch: 8
 
-lr:
-  _target_: utils.optim.LearningRater
+classifier:
+  _target_: trainer.ClassifierTrainer
 
-  start: 0.00001
-  max: 0.00005 #* strategy.num_replicas_in_sync
-  min: 0.00001
-  rampup_epochs: 5
-  sustain_epochs: 0
-  exp_decay: 0.8
+  fp16: True
+  grad_norm_clip_max: 35
+  max_epoch: 8
+  save_path: ${paths.save_folder}
 
-ema:
-  enable: true
-  decay: 0.9999
-  update_start_step: 0
+  optimizer:
+    target_type: torch.optim.Adam
+    kwargs:
+      lr: 1
+
+  lr_scheduler:
+    target_type: torch.optim.lr_scheduler.LambdaLR
+    kwargs:
+      lr_lambda:
+        _target_: utils.optim.LearningRater
+        
+        start: 0.00001
+        max: 0.00005
+        min: 0.00001
+        rampup_epochs: 5
+        sustain_epochs: 0
+        exp_decay: 0.8
+  
+  criterion:
+    bce:
+      _target_: torch.nn.BCEWithLogitsLoss
+  
+  ema:
+    enable: true
+    decay: 0.9999
+    update_start_step: 0
 
 
 vessel_segment:

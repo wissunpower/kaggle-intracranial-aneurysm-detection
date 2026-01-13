@@ -10,7 +10,6 @@ import hydra
 
 from tqdm.auto import tqdm
 
-from dataset.config import SeriesDataConfig
 from dataset.transform import SeriesTransform, NiftiTransform
 from dataset.dataset import (
     DICOMDataset,
@@ -23,10 +22,11 @@ from dataset.preprocessor import DICOMPreprocessor
 from dataset.manager import (
     VesselSegmentDataManager,
     VesselROIBBoxDataManager,
+    SeriesDataManager,
 )
 
 
-def build_dataset(cfg: DictConfig, data_config: SeriesDataConfig, fold_index: int=0
+def build_dataset(cfg: DictConfig, data_config: SeriesDataManager, fold_index: int=0
                   , transform: NiftiTransform|None=None, is_train: bool=False
                   ) -> NiftiDataset:
     data_indices = data_config.train_data_indices[fold_index] if is_train \

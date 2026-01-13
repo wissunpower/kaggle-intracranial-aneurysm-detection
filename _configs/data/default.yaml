@@ -1,21 +1,17 @@
-label_file_name: train.csv
-series_data_folder_name: series/
-preprocess_data_folder_name: raw_data/
-niix_path: ${paths.data_root_dir}series_niix
-
-num_classes: 14
-num_fold: 1
-current_fold: 0
-input_channels: 32
-img_size: 416
-img_crop_size: 224
-batch_size: 16
-volume_depth: 96
-volume_input_size: [96, 192, 192]
-
 
 common:
-  label_file_path: ${paths.data_root_dir}${data.label_file_name}
+  data_root_path: ${paths.data_root_dir}
+  label_file_name: train.csv
+  series_data_folder_name: series/
+  preprocess_data_folder_name: raw_data/
+  niix_path: ${paths.data_root_dir}series_niix
+  
+  num_classes: ${len:${data.common.label_class_names}}  # 14
+  current_fold: 0
+  input_channels: 48
+  input_size: [48, 352, 352]
+
+  label_file_path: ${paths.data_root_dir}${data.common.label_file_name}
   label_class_names: [
     'Left Infraclinoid Internal Carotid Artery',
     'Right Infraclinoid Internal Carotid Artery',
@@ -34,38 +30,28 @@ common:
   ]
 
 
-config:
-  _target_: dataset.SeriesDataConfig
+classifier:
+  _target_: dataset.SeriesDataManager
 
-  data_path: ${paths.data_root_dir}
-  niix_path: ${data.niix_path}
-  label_file_name: ${data.label_file_name}
-  label_weight_priority: []
-  num_fold: ${data.num_fold}
-
-transform:
-  _target_: dataset.SeriesTransform
-
-  img_size: ${data.img_size}
-  img_crop_size: ${data.img_crop_size}
-
-nifti_transform:
-  _target_: dataset.NiftiTransform
-
-  augmentations:
-    resize:
-      _target_: dataset.transform.augmentations.VolumeResize
-      target_shape: ${data.volume_input_size}
-
-nifti_train_dataset:
-  _target_: dataset.NiftiDataset
-
-  niix_path: ${data.niix_path}
-
-nifti_valid_dataset:
-  _target_: dataset.NiftiDataset
-
-  niix_path: ${data.niix_path}
+  input_data_folder_name: train_windows1_test1
+  num_fold: 5
+  current_fold: ${data.common.current_fold}
+  batch_size: 16
+  
+  # transform:
+  #   _target_: dataset.SeriesTransform
+    
+  #   img_size: ${data.common.img_size}
+  #   img_crop_size: ${data.common.img_crop_size}
+  
+  nifti_transform:
+    _target_: dataset.NiftiTransform
+    
+    augmentations:
+      resize:
+        _target_: dataset.transform.augmentations.ImageResize
+        target_shape: [352, 352]
+        forced_scale: True
 
 
 vessel_segment:

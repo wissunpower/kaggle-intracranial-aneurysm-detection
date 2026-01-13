@@ -1,3 +1,4 @@
 
 from dataset.manager.vessel_segment_data_manager import VesselSegmentDataManager
 from dataset.manager.vessel_roi_bbox import VesselROIBBoxDataManager
+from dataset.manager.classifier import SeriesDataManager
