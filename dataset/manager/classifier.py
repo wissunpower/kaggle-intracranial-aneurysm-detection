@@ -70,7 +70,8 @@ class SeriesDataManager:
                  , current_fold: int
                  , batch_size: int
                  , num_series_slide: int
-                 , nifti_transform
+                 , base_transform
+                 , aug_transform
                  , data_common_cfg: DictConfig
         ):
         self.data_root_path = data_common_cfg.data_root_path
@@ -88,7 +89,8 @@ class SeriesDataManager:
         self.current_fold = int(np.clip(current_fold, 0, self.num_fold - 1))
         self.batch_size = batch_size
         self.num_series_slide = num_series_slide
-        self.transform = nifti_transform
+        self.base_transform = base_transform
+        self.aug_transform = aug_transform
 
         self.column_start_index = 4
 
@@ -209,7 +211,8 @@ class SeriesDataManager:
                                           , metadata_df=train_slide_data
                                           , localizer_df=self.data_localizer_df
                                           , num_label_classes=self.num_label_classes
-                                          , transform=self.transform
+                                          , base_transform=self.base_transform
+                                          , aug_transform=self.aug_transform
                                           )
         self.train_dataloader = \
             torch.utils.data.DataLoader(self.train_dataset, self.batch_size
@@ -219,7 +222,7 @@ class SeriesDataManager:
                                           , metadata_df=valid_slide_data
                                           , localizer_df=self.data_localizer_df
                                           , num_label_classes=self.num_label_classes
-                                          , transform=self.transform
+                                          , base_transform=self.base_transform
                                           )
         self.valid_dataloader = torch.utils.data.DataLoader(self.valid_dataset, self.batch_size)
 

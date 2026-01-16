@@ -10,7 +10,11 @@ import hydra
 
 from tqdm.auto import tqdm
 
-from dataset.transform import SeriesTransform, NiftiTransform
+from dataset.transform import (
+    SeriesTransform,
+    NiftiTransform,
+    ImageMixedTransform,
+)
 from dataset.dataset import (
     DICOMDataset,
     NiftiDataset,

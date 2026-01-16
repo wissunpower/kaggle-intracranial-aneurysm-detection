@@ -14,12 +14,14 @@ class DICOMDataset(torch.utils.data.Dataset):
                  , metadata_df: pd.DataFrame
                  , localizer_df: pd.DataFrame
                  , num_label_classes: int
-                 , transform: SeriesTransform|None=None
+                 , base_transform=None
+                 , aug_transform=None
         ):
         self.metadata_df = metadata_df
         self.localizer_df = localizer_df
         self.num_label_classes = num_label_classes
-        self.transform = transform
+        self.base_transform = base_transform
+        self.aug_transform = aug_transform
 
         self.col_to_idx \
             = {x: i for i, x in enumerate(self.metadata_df.columns[6:6+self.num_label_classes-1])}
@@ -33,8 +35,11 @@ class DICOMDataset(torch.utils.data.Dataset):
     def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
         image, multi_label = self.get_raw_data(index)
 
-        if self.transform is not None:
-            image = self.transform(image)
+        if self.base_transform is not None:
+            image = self.base_transform(image)
+
+        if self.aug_transform is not None:
+            image = self.aug_transform(image)
         
         image = torch.from_numpy(image).contiguous().float()
         label = torch.from_numpy(multi_label).float()
