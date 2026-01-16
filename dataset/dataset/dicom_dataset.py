@@ -11,73 +11,74 @@ from dataset.transform.series_transform import SeriesTransform
 class DICOMDataset(torch.utils.data.Dataset):
     def __init__(self
                  , data_root_dir: str
-                 , input_data_folder_name: str
                  , metadata_df: pd.DataFrame
-                 , df_indices: np.ndarray
+                 , localizer_df: pd.DataFrame
+                 , num_label_classes: int
                  , transform: SeriesTransform|None=None
         ):
         self.metadata_df = metadata_df
-        self.df_indices = df_indices
+        self.localizer_df = localizer_df
+        self.num_label_classes = num_label_classes
         self.transform = transform
 
-        self.scan_df()
+        self.col_to_idx \
+            = {x: i for i, x in enumerate(self.metadata_df.columns[6:6+self.num_label_classes-1])}
         
-        self.raw_data_root_path = os.path.join(data_root_dir, input_data_folder_name)
+        self.raw_data_root_path = data_root_dir
         
         if not os.path.exists(self.raw_data_root_path):
             print(f'Not found raw data(npz image files) path'
                   f', preprocess data folder path: {self.raw_data_root_path}')
     
-    def scan_df(self):
-        if len(self.metadata_df) <= self.df_indices.max():
-            print(f'Invalid label df indices'
-                  f', label df size: {self.metadata_df}, max df index: {self.df_indices.max()}')
-            return
-        
-        self.label_infos = []
-
-        for df_index in self.df_indices:
-            current_row = self.metadata_df.values[df_index]
-            series_instance_uid = current_row[0]
-            multi_label = current_row[4:].astype(np.int8)
-            self.label_infos.append((df_index, series_instance_uid, multi_label))
-    
     def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
         image, multi_label = self.get_raw_data(index)
-
-        image = image.astype(np.float32)
 
         if self.transform is not None:
             image = self.transform(image)
         
-        image = torch.from_numpy(image).contiguous().float() / 255.
+        image = torch.from_numpy(image).contiguous().float()
         label = torch.from_numpy(multi_label).float()
 
         return image, label
     
     def get_raw_data(self, index: int) -> tuple[np.ndarray, np.ndarray]:
-        index = index % len(self.label_infos)
+        index = index % len(self.metadata_df)
 
-        df_index, series_instance_uid, multi_label = self.label_infos[index]
+        row = self.metadata_df.iloc[index]
 
-        raw_image_file_path = os.path.join(self.raw_data_root_path, series_instance_uid + '_origsampled.npy')
-        file_stream = np.load(raw_image_file_path)
-        # image = np.transpose(file_stream['arr_0'], (1, 2, 0))  # dim: [D, H, W] ->  [H, W, D]
-        # image = file_stream['arr_0']  # dim: [D, H, W]
-        image = file_stream
+        raw_image_file_path \
+            = os.path.join(self.raw_data_root_path, f'{row.SeriesUID}_I_{row.InstanceNumber}.npy')
+        file_stream = np.load(raw_image_file_path).astype(np.int32)
 
-        return image, multi_label
+        try:
+            prev_raw_image_file_path \
+                = os.path.join(self.raw_data_root_path, f'{row.SeriesUID}_I_{row.InstanceNumber-2}.npy')
+            prev_file_stream = np.load(prev_raw_image_file_path).astype(np.int32)
+        except:
+            prev_file_stream = file_stream
+
+        try:
+            next_raw_image_file_path \
+                = os.path.join(self.raw_data_root_path, f'{row.SeriesUID}_I_{row.InstanceNumber+2}.npy')
+            next_file_stream = np.load(next_raw_image_file_path).astype(np.int32)
+        except:
+            next_file_stream = file_stream
+
+        image = np.stack([prev_file_stream, file_stream, next_file_stream])
+
+        if 2.0 < (image.max() - image.min()):
+            image = (image - image.min()) / (image.max() - image.min())
+
+        localizer_label_rows = self.localizer_df[self.localizer_df.SOPInstanceUID == row.InstanceUID]
+        if len(localizer_label_rows) > 0:
+            multi_label = np.zeros((self.num_label_classes,))
+            for _, row in localizer_label_rows.iterrows():
+                loc = row.location.replace(' ', '_').lower()
+                multi_label[self.col_to_idx[loc]] = 1.
+        else:
+            multi_label = row[6 : 6 + self.num_label_classes].to_numpy()
+
+        return image.astype(np.float32), multi_label.astype(np.float32)
     
     def __len__(self) -> int:
-        return len(self.label_infos)
-    
-    def collate_fn(self, batch):
-        images, labels = list(zip(*batch))
-
-        if self.transform is not None:
-            self.transform.step_by_batch()
-        
-        images = torch.stack(images)
-        labels = torch.stack(labels)
-
-        return images, labels
+        return len(self.metadata_df)

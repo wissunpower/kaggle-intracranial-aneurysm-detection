@@ -2,14 +2,14 @@
 common:
   data_root_path: ${paths.data_root_dir}
   label_file_name: train.csv
+  localizer_label_file_name: train_localizers.csv
   series_data_folder_name: series/
   preprocess_data_folder_name: raw_data/
   niix_path: ${paths.data_root_dir}series_niix
   
   num_classes: ${len:${data.common.label_class_names}}  # 14
   current_fold: 0
-  input_channels: 48
-  input_size: [48, 352, 352]
+  input_channels: 3
 
   label_file_path: ${paths.data_root_dir}${data.common.label_file_name}
   label_class_names: [
@@ -34,9 +34,12 @@ classifier:
   _target_: dataset.SeriesDataManager
 
   input_data_folder_name: train_windows1_test1
+  series_slide_fileset_path: E:/ml_data_resource_backup/kaggle/intracranial_aneurysm_detection/train_sampled/
+  series_slide_metainfo_file_name: 'train_sampled_new.csv'
   num_fold: 5
   current_fold: ${data.common.current_fold}
   batch_size: 16
+  num_series_slide: 12
   
   # transform:
   #   _target_: dataset.SeriesTransform

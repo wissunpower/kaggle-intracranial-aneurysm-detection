@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 from omegaconf import DictConfig
-import glob
+from tqdm.auto import tqdm
 
 import torch
 
@@ -64,20 +64,30 @@ DICOM_TAG_ALLOWLIST = [
 class SeriesDataManager:
     def __init__(self
                  , input_data_folder_name: str
+                 , series_slide_fileset_path: str
+                 , series_slide_metainfo_file_name: str
                  , num_fold: int
                  , current_fold: int
                  , batch_size: int
+                 , num_series_slide: int
                  , nifti_transform
                  , data_common_cfg: DictConfig
         ):
         self.data_root_path = data_common_cfg.data_root_path
-        self.data_label_df = pd.read_csv(os.path.join(self.data_root_path, data_common_cfg.label_file_name))
+        self.series_slide_fileset_path = series_slide_fileset_path
+        self.data_label_df \
+            = pd.read_csv(os.path.join(self.data_root_path, data_common_cfg.label_file_name))
+        self.data_localizer_df \
+            = pd.read_csv(os.path.join(self.data_root_path, data_common_cfg.localizer_label_file_name))
+        self.series_slide_metainfo_df \
+            = pd.read_csv(os.path.join(self.data_root_path, series_slide_metainfo_file_name))
         self.num_label_classes = data_common_cfg.num_classes
 
         self.input_data_folder_name = input_data_folder_name
         self.num_fold = num_fold
         self.current_fold = int(np.clip(current_fold, 0, self.num_fold - 1))
         self.batch_size = batch_size
+        self.num_series_slide = num_series_slide
         self.transform = nifti_transform
 
         self.column_start_index = 4
@@ -113,7 +123,7 @@ class SeriesDataManager:
         if fold_index is None:
             fold_index = self.current_fold
         
-        fold_index = np.clip(fold_index, 0, self.num_fold - 1)
+        fold_index = int(np.clip(fold_index, 0, self.num_fold - 1))
         
         return np.concatenate([indices for index, indices in enumerate(self.indices_folds)
                                if fold_index != index])
@@ -125,28 +135,90 @@ class SeriesDataManager:
         if fold_index is None:
             fold_index = self.current_fold
         
-        fold_index = np.clip(fold_index, 0, self.num_fold - 1)
+        fold_index = int(np.clip(fold_index, 0, self.num_fold - 1))
         
         return np.array(self.indices_folds[fold_index])
+    
+    def build_dataset_metaInfo(self) -> tuple[pd.DataFrame, pd.DataFrame]:
+        train_indices = self.get_train_data_indices()
+        valid_indices = self.get_valid_data_indices()
+
+        train_data = self.data_label_df.iloc[train_indices]
+        valid_data = self.data_label_df.iloc[valid_indices]
+
+        train_sample = []
+        valid_sample = []
+        
+        localizer_df_group = self.data_localizer_df.groupby('SeriesInstanceUID')
+
+        for _, group_pair in tqdm(enumerate(localizer_df_group)):
+            series_uid, group_df = group_pair
+            
+            if series_uid in train_data.SeriesInstanceUID.values.tolist():
+                for _, slide_df in group_df.iterrows():
+                    train_sample.append(
+                        self.series_slide_metainfo_df[
+                            self.series_slide_metainfo_df.InstanceUID == slide_df.SOPInstanceUID
+                            ])
+            
+            if series_uid in valid_data.SeriesInstanceUID.values.tolist():
+                for _, slide_df in group_df.iterrows():
+                    valid_sample.append(
+                        self.series_slide_metainfo_df[
+                            self.series_slide_metainfo_df.InstanceUID == slide_df.SOPInstanceUID
+                            ])
+        
+        metainfo_df_group = self.series_slide_metainfo_df.groupby('SeriesUID')
+
+        for _, group_pair in enumerate(metainfo_df_group):
+            series_uid, group_df = group_pair
+            
+            target_index_start = 0
+            target_index_end = len(group_df) - 1
+            if len(group_df) * 0.7 >= self.num_series_slide:
+                margin = len(group_df) * 0.15
+                target_index_start += margin
+                target_index_end -= margin
+            target_rows =\
+                group_df.iloc[
+                    np.linspace(target_index_start, target_index_end, self.num_series_slide).astype(int)
+                ]
+
+            # In train data case, include only negative data
+            # positive data included above
+            if series_uid in train_data.SeriesInstanceUID.values.tolist() \
+                and 0 == group_df.aneurysm_present.values.sum():
+                train_sample.append(target_rows)
+            
+            if series_uid in valid_data.SeriesInstanceUID.values.tolist() \
+                and 0 == group_df.aneurysm_present.values.sum():
+                valid_sample.append(target_rows)
+
+        train_slide_data = pd.concat(train_sample).reset_index(drop=True)
+        valid_slide_data = pd.concat(valid_sample).reset_index(drop=True)
+
+        return train_slide_data, valid_slide_data
     
     def build_dataloader(self, fold_index:int|None = None):
         if fold_index is not None:
             self.current_fold = int(np.clip(fold_index, 0, self.num_fold - 1))
+
+        train_slide_data, valid_slide_data = self.build_dataset_metaInfo()
  
-        self.train_dataset = DICOMDataset(data_root_dir=self.data_root_path
-                                          , input_data_folder_name=self.input_data_folder_name
-                                          , metadata_df=self.data_label_df
-                                          , df_indices=self.get_train_data_indices()
+        self.train_dataset = DICOMDataset(data_root_dir=self.series_slide_fileset_path
+                                          , metadata_df=train_slide_data
+                                          , localizer_df=self.data_localizer_df
+                                          , num_label_classes=self.num_label_classes
                                           , transform=self.transform
                                           )
         self.train_dataloader = \
             torch.utils.data.DataLoader(self.train_dataset, self.batch_size
                                         , shuffle=True, drop_last=True)
 
-        self.valid_dataset = DICOMDataset(data_root_dir=self.data_root_path
-                                          , input_data_folder_name=self.input_data_folder_name
-                                          , metadata_df=self.data_label_df
-                                          , df_indices=self.get_valid_data_indices()
+        self.valid_dataset = DICOMDataset(data_root_dir=self.series_slide_fileset_path
+                                          , metadata_df=valid_slide_data
+                                          , localizer_df=self.data_localizer_df
+                                          , num_label_classes=self.num_label_classes
                                           , transform=self.transform
                                           )
         self.valid_dataloader = torch.utils.data.DataLoader(self.valid_dataset, self.batch_size)
