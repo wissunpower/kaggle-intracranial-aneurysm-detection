@@ -5,20 +5,20 @@ import pandas as pd
 
 import torch
 
-from dataset.transform.series_transform import SeriesTransform
-
 
 class DICOMDataset(torch.utils.data.Dataset):
     def __init__(self
                  , data_root_dir: str
                  , metadata_df: pd.DataFrame
                  , localizer_df: pd.DataFrame
+                 , roi_crop_info: dict
                  , num_label_classes: int
                  , base_transform=None
                  , aug_transform=None
         ):
         self.metadata_df = metadata_df
         self.localizer_df = localizer_df
+        self.roi_crop_info = roi_crop_info
         self.num_label_classes = num_label_classes
         self.base_transform = base_transform
         self.aug_transform = aug_transform
@@ -71,15 +71,22 @@ class DICOMDataset(torch.utils.data.Dataset):
 
         image = np.stack([prev_file_stream, file_stream, next_file_stream])
 
+        height, width = image.shape[-2:]
+        x1, x2, y1, y2 = self.roi_crop_info[row.SeriesUID]
+        image = image[:
+                      , int(y1 * height * 0.9):int(y2 * height * 1.1)
+                      , int(x1 * width * 0.9):int(x2 * width * 1.1)]
+
         if 2.0 < (image.max() - image.min()):
             image = (image - image.min()) / (image.max() - image.min())
 
         localizer_label_rows = self.localizer_df[self.localizer_df.SOPInstanceUID == row.InstanceUID]
         if len(localizer_label_rows) > 0:
             multi_label = np.zeros((self.num_label_classes,))
-            for _, row in localizer_label_rows.iterrows():
-                loc = row.location.replace(' ', '_').lower()
+            for _, localizer_label_row in localizer_label_rows.iterrows():
+                loc = localizer_label_row.location.replace(' ', '_').lower()
                 multi_label[self.col_to_idx[loc]] = 1.
+            multi_label[-1] = row.aneurysm_present
         else:
             multi_label = row[6 : 6 + self.num_label_classes].to_numpy()
 

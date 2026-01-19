@@ -36,6 +36,7 @@ classifier:
   input_data_folder_name: train_windows1_test1
   series_slide_fileset_path: E:/ml_data_resource_backup/kaggle/intracranial_aneurysm_detection/train_sampled/
   series_slide_metainfo_file_name: 'train_sampled_new.csv'
+  roi_crop_info_file_name: series_to_crop_try5smallplusv7.npy
   num_fold: 5
   current_fold: ${data.common.current_fold}
   batch_size: 16

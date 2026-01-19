@@ -66,6 +66,7 @@ class SeriesDataManager:
                  , input_data_folder_name: str
                  , series_slide_fileset_path: str
                  , series_slide_metainfo_file_name: str
+                 , roi_crop_info_file_name: str
                  , num_fold: int
                  , current_fold: int
                  , batch_size: int
@@ -82,6 +83,8 @@ class SeriesDataManager:
             = pd.read_csv(os.path.join(self.data_root_path, data_common_cfg.localizer_label_file_name))
         self.series_slide_metainfo_df \
             = pd.read_csv(os.path.join(self.data_root_path, series_slide_metainfo_file_name))
+        self.roi_crop_info \
+            = np.load(os.path.join(self.data_root_path, roi_crop_info_file_name), allow_pickle=True).item()
         self.num_label_classes = data_common_cfg.num_classes
 
         self.input_data_folder_name = input_data_folder_name
@@ -210,6 +213,7 @@ class SeriesDataManager:
         self.train_dataset = DICOMDataset(data_root_dir=self.series_slide_fileset_path
                                           , metadata_df=train_slide_data
                                           , localizer_df=self.data_localizer_df
+                                          , roi_crop_info=self.roi_crop_info
                                           , num_label_classes=self.num_label_classes
                                           , base_transform=self.base_transform
                                           , aug_transform=self.aug_transform
@@ -221,6 +225,7 @@ class SeriesDataManager:
         self.valid_dataset = DICOMDataset(data_root_dir=self.series_slide_fileset_path
                                           , metadata_df=valid_slide_data
                                           , localizer_df=self.data_localizer_df
+                                          , roi_crop_info=self.roi_crop_info
                                           , num_label_classes=self.num_label_classes
                                           , base_transform=self.base_transform
                                           )
