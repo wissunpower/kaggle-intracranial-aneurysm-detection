@@ -11,7 +11,7 @@ class DICOMDataset(torch.utils.data.Dataset):
                  , data_root_dir: str
                  , metadata_df: pd.DataFrame
                  , localizer_df: pd.DataFrame
-                 , roi_crop_info: dict
+                 , roi_crop_info: dict|None
                  , num_label_classes: int
                  , base_transform=None
                  , aug_transform=None
@@ -71,11 +71,12 @@ class DICOMDataset(torch.utils.data.Dataset):
 
         image = np.stack([prev_file_stream, file_stream, next_file_stream])
 
-        height, width = image.shape[-2:]
-        x1, x2, y1, y2 = self.roi_crop_info[row.SeriesUID]
-        image = image[:
-                      , int(y1 * height * 0.9):int(y2 * height * 1.1)
-                      , int(x1 * width * 0.9):int(x2 * width * 1.1)]
+        if self.roi_crop_info is not None:
+            height, width = image.shape[-2:]
+            x1, x2, y1, y2 = self.roi_crop_info[row.SeriesUID]
+            image = image[:
+                          , int(y1 * height * 0.9):int(y2 * height * 1.1)
+                          , int(x1 * width * 0.9):int(x2 * width * 1.1)]
 
         if 2.0 < (image.max() - image.min()):
             image = (image - image.min()) / (image.max() - image.min())

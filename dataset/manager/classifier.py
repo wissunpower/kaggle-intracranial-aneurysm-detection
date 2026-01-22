@@ -83,8 +83,13 @@ class SeriesDataManager:
             = pd.read_csv(os.path.join(self.data_root_path, data_common_cfg.localizer_label_file_name))
         self.series_slide_metainfo_df \
             = pd.read_csv(os.path.join(self.data_root_path, series_slide_metainfo_file_name))
-        self.roi_crop_info \
-            = np.load(os.path.join(self.data_root_path, roi_crop_info_file_name), allow_pickle=True).item()
+
+        roi_crop_info_file_path = os.path.join(self.data_root_path, roi_crop_info_file_name)
+        try:
+            self.roi_crop_info = np.load(roi_crop_info_file_path, allow_pickle=True).item()
+        except:
+            self.roi_crop_info = None
+
         self.num_label_classes = data_common_cfg.num_classes
 
         self.input_data_folder_name = input_data_folder_name
