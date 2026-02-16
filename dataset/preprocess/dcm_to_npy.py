@@ -1,5 +1,6 @@
 
 # https://www.kaggle.com/datasets/harshitsheoran/rsna2025-training-code
+# ./create_data1.ipynb
 # ./try5_seg/create_data1.ipynb
 
 import os
@@ -91,19 +92,64 @@ def preprocess(cfg: DictConfig):
     print("----------------------------------------------------------")
 
     preprocessor: DICOMToNPYPreprocessor = hydra.utils.instantiate(cfg.preprocess)
+
+    label_data = pd.read_csv(cfg.label_file_path)
+    label_columns = label_data.columns[4:18]
+    new_columns = ['_'.join(column.split()).lower() for column in label_columns]
+    DAT = {
+        col: [] for col in [
+            'SeriesUID',
+            'InstanceUID',
+            'Modality',
+            'InstanceNumber',
+            'RescaleSlope',
+            'RescaleIntercept']
+            + new_columns
+        }
     
     os.makedirs(cfg.output_path, exist_ok=True)
 
-    for root, dirs, files in os.walk(cfg.series_data_path):
-        if 0 >= len(dirs):
-            continue
+    for label_data_index, row in tqdm(label_data.iterrows(), total=len(label_data)):
+        volume, valid_data \
+            = preprocessor(os.path.join(cfg.series_data_path, str(row.SeriesInstanceUID)))
+        
+        for slide_index, (slc, slc_data) in enumerate(zip(volume, valid_data)):
+            dcm, file = slc_data
+            pos = int(slide_index + 1)
 
-        for sub_dir in tqdm(dirs):
-            volume, valid_data = preprocessor(os.path.join(root, sub_dir))
-
-            for i, (slc, slc_data) in enumerate(zip(volume, valid_data)):
-                pos = int(i + 1)
-                np.save(os.path.join(cfg.output_path, f'{sub_dir}_I_{pos}.npy'), slc)
+            series_uid = row.SeriesInstanceUID
+            instance_uid = file.split('/')[-1].split('\\')[-1].replace('.dcm', '')
+            
+            if cfg.slide_metainfo_gen.enable:
+                DAT['SeriesUID'].append(series_uid)
+                DAT['InstanceUID'].append(instance_uid)
+                DAT['Modality'].append(row.Modality)
+                DAT['InstanceNumber'].append(pos)
+                
+                if 'RescaleSlope' in dcm:
+                    slope = float(dcm.RescaleSlope)
+                else:
+                    slope = -100
+                
+                if 'RescaleIntercept' in dcm:
+                    intercept = float(dcm.RescaleIntercept)
+                else:
+                    intercept = -100
+                
+                DAT['RescaleSlope'].append(slope)
+                DAT['RescaleIntercept'].append(intercept)
+                
+                for col1, col2 in zip(label_columns, new_columns):
+                    DAT[col2].append(row[col1])
+            
+            np.save(os.path.join(cfg.output_path, f'{series_uid}_I_{pos}.npy'), slc)
+        
+        # if 3 < label_data_index:
+        #     break
+    
+    if cfg.slide_metainfo_gen.enable:
+        DAT_DF = pd.DataFrame(DAT)
+        DAT_DF.to_csv(cfg.slide_metainfo_gen.output_path, index=False)
 
 
 @hydra.main(version_base="1.3", config_path="../../_configs", config_name="dcm_to_npy.yaml")
