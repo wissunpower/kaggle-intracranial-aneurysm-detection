@@ -16,6 +16,8 @@ class VesselROIBBoxEvaluator:
         
         self.best_valid_loss = float('inf')
         self.prev_best_valid_loss = float('inf')
+        self.best_valid_acc = float('inf')
+        self.prev_best_valid_acc = float('inf')
     
     def evaluate(self, model: torch.nn.Module, criterion: torch.nn.Module|None) -> tuple[float, float]:
         # Validation
@@ -38,7 +40,7 @@ class VesselROIBBoxEvaluator:
                 
                 self.acc_calculator.enqueue(labels, logits)
                 
-                # if batch_index > 2:
+                # if batch_index > 4:
                 #     break
         
         valid_loss /= len(self.valid_dataloader)
@@ -50,6 +52,14 @@ class VesselROIBBoxEvaluator:
         if new_loss is not None and new_loss < self.best_valid_loss:
             self.prev_best_valid_loss = self.best_valid_loss
             self.best_valid_loss = new_loss
+            return True
+        
+        return False
+    
+    def update_best_valid_acc(self, new_acc: float) -> bool:
+        if new_acc is not None and new_acc < self.best_valid_acc:
+            self.prev_best_valid_acc = self.best_valid_acc
+            self.best_valid_acc = new_acc
             return True
         
         return False

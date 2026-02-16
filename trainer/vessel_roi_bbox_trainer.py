@@ -1,5 +1,5 @@
 
-import time, os
+import time, os, math
 import numpy as np
 from omegaconf import DictConfig
 import pydoc
@@ -68,13 +68,32 @@ class VesselROIBBoxTrainer:
         optim_type = pydoc.locate(optimizer.target_type)
         self.optimizer = optim_type(self.model.parameters(), **optimizer.kwargs)
 
+        self.lr_scheduler_per_mini_batch = False
+        self.lr_scheduler_step_period = 1
+        steps_per_epoch: int = 1
+        if 'step' in lr_scheduler and lr_scheduler.step.custom_enable:
+            if lr_scheduler.step.per_mini_batch:
+                self.lr_scheduler_per_mini_batch = True
+                steps_per_epoch *= len(self.train_dataloader)
+            self.lr_scheduler_step_period = lr_scheduler.step.period
+
+            lr_scheduler_total_count = math.ceil(self.max_epoch * steps_per_epoch / self.lr_scheduler_step_period)
+            lr_scheduler_total_count \
+                = int((lr_scheduler_total_count * lr_scheduler.step.total_count.scale)
+                      + lr_scheduler.step.total_count.bias)
+            
+            if 0 < len(lr_scheduler.step.arg_name):
+                lr_scheduler.kwargs[lr_scheduler.step.arg_name] = lr_scheduler_total_count
+
         lr_scheduler_type = pydoc.locate(lr_scheduler.target_type)
         self.scheduler = lr_scheduler_type(optimizer=self.optimizer, **lr_scheduler.kwargs)
 
         self.criterion = criterion.mae.to(self.device)
 
         self.evaluator \
-            = VesselROIBBoxEvaluator(self.device, self.data_manager.get_valid_dataloader(), AccuracyCalculator())
+            = VesselROIBBoxEvaluator(self.device
+                                     , self.data_manager.get_valid_dataloader()
+                                     , AccuracyCalculator())
         
         self.model_ema: ModelEmaV3|None = None
         self.ema_update_start_step: int = 0
@@ -89,7 +108,7 @@ class VesselROIBBoxTrainer:
     def train(self):
         is_autocast_enabled = torch.is_autocast_enabled(str(self.device))
         autocast_dtype = torch.get_autocast_dtype(str(self.device))
-        print(f'is_autocast_enabled: {is_autocast_enabled}, autocast_dtype: {autocast_dtype}')
+        logger.info(f'is_autocast_enabled: {is_autocast_enabled}, autocast_dtype: {autocast_dtype}')
         
         # torch.autograd.set_detect_anomaly(True)
 
@@ -102,8 +121,10 @@ class VesselROIBBoxTrainer:
             = os.path.join(self.save_path, f'{type(self.model).__name__.lower()}_{self.train_start_time_str}')
         os.makedirs(model_save_folder, exist_ok=True)
 
-        self.best_checkpoint_name \
-            = f'best_checkpoint_{type(self.model).__name__.lower()}_{self.fold_index:02d}_{self.train_start_time_str}.pth'
+        self.best_loss_checkpoint_name \
+            = f'best_loss_checkpoint_{type(self.model).__name__.lower()}_{self.fold_index:02d}_{self.train_start_time_str}.pth'
+        self.best_acc_checkpoint_name \
+            = f'best_acc_checkpoint_{type(self.model).__name__.lower()}_{self.fold_index:02d}_{self.train_start_time_str}.pth'
         
         for epoch in range(self.start_epoch, self.max_epoch):
             self.model.train()
@@ -132,7 +153,13 @@ class VesselROIBBoxTrainer:
                 logger.info(f'Validation loss improved from {self.evaluator.prev_best_valid_loss:.4f} '
                       f'to {self.evaluator.best_valid_loss:.4f}.')
                 logger.info('Save checkpoint.')
-                torch.save(self.model.state_dict(), os.path.join(model_save_folder, self.best_checkpoint_name))
+                torch.save(self.model.state_dict(), os.path.join(model_save_folder, self.best_loss_checkpoint_name))
+            
+            if self.evaluator.update_best_valid_acc(valid_accuracy):
+                logger.info(f'Validation accuracy improved from {self.evaluator.prev_best_valid_acc:.4f} '
+                      f'to {self.evaluator.best_valid_acc:.4f}.')
+                logger.info('Save checkpoint.')
+                torch.save(self.model.state_dict(), os.path.join(model_save_folder, self.best_acc_checkpoint_name))
 
     def eval(self, model: torch.nn.Module) -> tuple[float, float]:
         model_eval = model if self.model_ema is None else self.model_ema
@@ -148,9 +175,9 @@ class VesselROIBBoxTrainer:
         self.acc_calculator.reset()
 
         epoch_size = len(self.train_dataloader)
-        optimizer_step_skip_start_batch_index = int(-1)
-        grad_norm_isnan = False
-        grad_norm_isinf = False
+        optimizer_step_skip_batch_index = []
+        grad_norm_nan_count = int(0)
+        grad_norm_inf_count = int(0)
 
         for batch_index, batch_data in enumerate(tqdm(self.train_dataloader)):
             forward_step = batch_index + (epoch * epoch_size)
@@ -171,15 +198,19 @@ class VesselROIBBoxTrainer:
                 self.grad_scaler.unscale_(self.optimizer)
                 # clip gradients
                 grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=self.grad_norm_clip_max)
-                if torch.logical_or(grad_norm.isnan(), grad_norm.isinf()) \
-                    and 0 > optimizer_step_skip_start_batch_index:
-                    optimizer_step_skip_start_batch_index = batch_index
-                    grad_norm_isnan = grad_norm.isnan() or grad_norm_isnan
-                    grad_norm_isinf = grad_norm.isinf() or grad_norm_isinf
+                if torch.logical_or(grad_norm.isnan(), grad_norm.isinf()):
+                    optimizer_step_skip_batch_index.append(batch_index)
+                    grad_norm_nan_count += int(1 if grad_norm.isnan() else 0)
+                    grad_norm_inf_count += int(1 if grad_norm.isinf() else 0)
+            
             # optimizer.step
             self.grad_scaler.step(self.optimizer)
             self.grad_scaler.update()
             self.optimizer.zero_grad()
+            
+            if self.lr_scheduler_per_mini_batch \
+                and 0 == (forward_step + 1) % self.lr_scheduler_step_period:
+                self.scheduler.step()
 
             if self.model_ema is not None and forward_step >= self.ema_update_start_step:
                 self.model_ema.update(model)
@@ -192,18 +223,23 @@ class VesselROIBBoxTrainer:
 
             self.acc_calculator.enqueue(labels, pred)
 
-            # if batch_index > 2:
+            # if batch_index > 4:
             #     break
         
         train_loss /= len(self.train_dataloader)
         train_accuracy = self.acc_calculator.calculate()
 
-        self.scheduler.step()
+        if not self.lr_scheduler_per_mini_batch \
+              and 0 == (epoch + 1) % self.lr_scheduler_step_period:
+            self.scheduler.step()
         
-        if grad_norm_isnan or grad_norm_isinf:
+        if 0 < len(optimizer_step_skip_batch_index):
+            skip_step_str \
+                = f'{len(optimizer_step_skip_batch_index) if 10 < len(optimizer_step_skip_batch_index)
+                     else optimizer_step_skip_batch_index}'
             # scaler is going to skip optimizer.step() if grads are nan or inf
             # some updates are skipped anyway in the amp mode, but we can count for statistics
-            print(f'Skiped optimizer step, start_batch_index: {optimizer_step_skip_start_batch_index}'
-                  f', isnan: {grad_norm_isnan}, isinf: {grad_norm_isinf}')
+            logger.info(f'Skiped optimizer step, indices or count: {skip_step_str}')
+            logger.info(f'nan_count: {grad_norm_nan_count}, inf_count: {grad_norm_inf_count}')
 
         return train_loss, train_accuracy
