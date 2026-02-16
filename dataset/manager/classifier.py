@@ -7,6 +7,8 @@ from tqdm.auto import tqdm
 
 import torch
 
+from sklearn.model_selection import StratifiedKFold
+
 from dataset import DICOMDataset
 
 
@@ -122,8 +124,13 @@ class SeriesDataManager:
     
     def init_data_indices(self):
         if 1 < self.num_fold:
+            # splits = [*StratifiedKFold(n_splits=self.num_fold).split(self.data_label_df, self.data_label_df.Modality)]
+            # self.indices_folds = []
+            # for f, split in enumerate(splits):
+            #     self.indices_folds.append(split[1])
+
             self.indices_folds = self.split_fold_data_index()
-        
+
         self.train_data_default_indices, self.valid_data_default_indices = self.split_data_index()
     
     def get_train_data_indices(self, fold_index:int|None = None) -> np.ndarray:
@@ -149,7 +156,7 @@ class SeriesDataManager:
         
         return np.array(self.indices_folds[fold_index])
     
-    def build_dataset_metaInfo(self) -> tuple[pd.DataFrame, pd.DataFrame]:
+    def build_dataset_metaInfo(self) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         train_indices = self.get_train_data_indices()
         valid_indices = self.get_valid_data_indices()
 
@@ -157,63 +164,165 @@ class SeriesDataManager:
         valid_data = self.data_label_df.iloc[valid_indices]
 
         train_sample = []
-        valid_sample = []
-        
+        valid_positive_slide_indices = []
         localizer_df_group = self.data_localizer_df.groupby('SeriesInstanceUID')
 
         for _, group_pair in tqdm(enumerate(localizer_df_group)):
             series_uid, group_df = group_pair
             
-            if series_uid in train_data.SeriesInstanceUID.values.tolist():
-                for _, slide_df in group_df.iterrows():
-                    train_sample.append(
-                        self.series_slide_metainfo_df[
-                            self.series_slide_metainfo_df.InstanceUID == slide_df.SOPInstanceUID
-                            ])
-            
-            if series_uid in valid_data.SeriesInstanceUID.values.tolist():
-                for _, slide_df in group_df.iterrows():
-                    valid_sample.append(
-                        self.series_slide_metainfo_df[
-                            self.series_slide_metainfo_df.InstanceUID == slide_df.SOPInstanceUID
-                            ])
-        
+            for _, slide_df in group_df.iterrows():
+                coords = eval(slide_df.coordinates)
+                
+                if 'f' in coords:
+                    slide_index = self.series_slide_metainfo_df[
+                        (self.series_slide_metainfo_df.InstanceUID == slide_df.SOPInstanceUID)
+                        & (self.series_slide_metainfo_df.InstanceNumber == coords['f']+1)
+                        ].index[0]
+                else:
+                    slide_index = self.series_slide_metainfo_df[
+                        (self.series_slide_metainfo_df.InstanceUID == slide_df.SOPInstanceUID)
+                        ].index[0]
+
+                if series_uid in train_data.SeriesInstanceUID.values.tolist():
+                    train_sample.append(self.series_slide_metainfo_df.iloc[[slide_index]])
+                
+                if series_uid in valid_data.SeriesInstanceUID.values.tolist():
+                    valid_positive_slide_indices.append(slide_index)
+
+        train_slide_indices = []
+        valid_slide_indices = []
+        interest_slide_indices = []
         metainfo_df_group = self.series_slide_metainfo_df.groupby('SeriesUID')
 
         for _, group_pair in enumerate(metainfo_df_group):
             series_uid, group_df = group_pair
+
+            if series_uid in train_data.SeriesInstanceUID.values.tolist():
+                train_slide_indices.extend(group_df.index)
+            
+            if series_uid in valid_data.SeriesInstanceUID.values.tolist():
+                valid_slide_indices.extend(group_df.index)
+
+            if 0 < group_df.aneurysm_present.values.sum():
+                continue
+
+            # only negative case, positive indices included above
+            # num_slide = min(self.num_series_slide, len(group_df))
+            num_slide = self.num_series_slide
+            negative_indices = np.linspace(0, len(group_df) - 1, num_slide).astype(int)
+            
+            interest_slide_indices.extend(group_df.iloc[negative_indices].index)
+
+            if series_uid in train_data.SeriesInstanceUID.values.tolist():
+                train_sample.append(group_df.iloc[negative_indices])
+        
+        assert len(self.series_slide_metainfo_df) == (len(train_slide_indices) + len(valid_slide_indices)) \
+            , 'Missing index exists.'
+        
+        NUM_TOTAL_SLIDE = len(self.series_slide_metainfo_df)
+        
+        interest_mask = np.full(NUM_TOTAL_SLIDE, False)
+        interest_mask[interest_slide_indices] = True
+
+        valid_interest_mask = np.full(NUM_TOTAL_SLIDE, False)
+        valid_interest_mask[valid_slide_indices] = True
+        valid_not_interest_mask = valid_interest_mask
+        valid_interest_mask = valid_interest_mask & interest_mask
+        valid_interest_mask[valid_positive_slide_indices] = True
+        valid_not_interest_mask = valid_not_interest_mask & (~valid_interest_mask)
+
+        train_slide_data = pd.concat(train_sample).reset_index(drop=True)
+        valid_slide_data = self.series_slide_metainfo_df[valid_interest_mask]
+        valid_slide_sub_data = self.series_slide_metainfo_df[valid_not_interest_mask]
+
+        return train_slide_data, valid_slide_data, valid_slide_sub_data
+    
+    def build_dataset_metaInfo_my(self) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+        train_indices = self.get_train_data_indices()
+        valid_indices = self.get_valid_data_indices()
+
+        train_data = self.data_label_df.iloc[train_indices]
+        valid_data = self.data_label_df.iloc[valid_indices]
+
+        interest_slide_indices = []
+        localizer_df_group = self.data_localizer_df.groupby('SeriesInstanceUID')
+
+        for _, group_pair in tqdm(enumerate(localizer_df_group)):
+            series_uid, group_df = group_pair
+            
+            for _, slide_df in group_df.iterrows():
+                coords = eval(slide_df.coordinates)
+                
+                if 'f' in coords:
+                    slide_index = self.series_slide_metainfo_df[
+                        (self.series_slide_metainfo_df.InstanceUID == slide_df.SOPInstanceUID)
+                        & (self.series_slide_metainfo_df.InstanceNumber == coords['f']+1)
+                        ].index[0]
+                else:
+                    slide_index = self.series_slide_metainfo_df[
+                        (self.series_slide_metainfo_df.InstanceUID == slide_df.SOPInstanceUID)
+                        ].index[0]
+                
+                interest_slide_indices.append(slide_index)
+
+        train_slide_indices = []
+        valid_slide_indices = []
+        metainfo_df_group = self.series_slide_metainfo_df.groupby('SeriesUID')
+
+        for _, group_pair in enumerate(metainfo_df_group):
+            series_uid, group_df = group_pair
+
+            if series_uid in train_data.SeriesInstanceUID.values.tolist():
+                train_slide_indices.extend(group_df.index)
+            
+            if series_uid in valid_data.SeriesInstanceUID.values.tolist():
+                valid_slide_indices.extend(group_df.index)
+
+            if 0 < group_df.aneurysm_present.values.sum():
+                continue
+
+            # only negative case, positive indices included above
+            num_slide = min(self.num_series_slide, len(group_df))
             
             target_index_start = 0
             target_index_end = len(group_df) - 1
-            if len(group_df) * 0.7 >= self.num_series_slide:
-                margin = len(group_df) * 0.15
-                target_index_start += margin
-                target_index_end -= margin
-            target_rows =\
-                group_df.iloc[
-                    np.linspace(target_index_start, target_index_end, self.num_series_slide).astype(int)
-                ]
 
-            # In train data case, include only negative data
-            # positive data included above
-            if series_uid in train_data.SeriesInstanceUID.values.tolist() \
-                and 0 == group_df.aneurysm_present.values.sum():
-                train_sample.append(target_rows)
+            if (target_index_end - target_index_start) >= self.num_series_slide:
+                negative_indices = np.linspace(target_index_start, target_index_end, num_slide).astype(int)
+            else:
+                negative_indices = np.arange(num_slide)
             
-            if series_uid in valid_data.SeriesInstanceUID.values.tolist() \
-                and 0 == group_df.aneurysm_present.values.sum():
-                valid_sample.append(target_rows)
+            interest_slide_indices.extend(group_df.iloc[negative_indices].index)
+        
+        assert len(self.series_slide_metainfo_df) == (len(train_slide_indices) + len(valid_slide_indices)) \
+            , 'Missing index exists.'
+        
+        NUM_TOTAL_SLIDE = len(self.series_slide_metainfo_df)
+        
+        interest_mask = np.full(NUM_TOTAL_SLIDE, False)
+        interest_mask[interest_slide_indices] = True
 
-        train_slide_data = pd.concat(train_sample).reset_index(drop=True)
-        valid_slide_data = pd.concat(valid_sample).reset_index(drop=True)
+        train_interest_mask = np.full(NUM_TOTAL_SLIDE, False)
+        train_interest_mask[train_slide_indices] = True
+        train_interest_mask = train_interest_mask & interest_mask
 
-        return train_slide_data, valid_slide_data
+        valid_interest_mask = np.full(NUM_TOTAL_SLIDE, False)
+        valid_interest_mask[valid_slide_indices] = True
+        valid_not_interest_mask = valid_interest_mask
+        valid_interest_mask = valid_interest_mask & interest_mask
+        valid_not_interest_mask = valid_not_interest_mask & (~interest_mask)
+
+        train_slide_data = self.series_slide_metainfo_df[train_interest_mask]
+        valid_slide_data = self.series_slide_metainfo_df[valid_interest_mask]
+        valid_slide_sub_data = self.series_slide_metainfo_df[valid_not_interest_mask]
+
+        return train_slide_data, valid_slide_data, valid_slide_sub_data
     
     def build_dataloader(self, fold_index:int|None = None):
         if fold_index is not None:
             self.current_fold = int(np.clip(fold_index, 0, self.num_fold - 1))
 
-        train_slide_data, valid_slide_data = self.build_dataset_metaInfo()
+        train_slide_data, valid_slide_data, valid_slide_sub_data = self.build_dataset_metaInfo()
  
         self.train_dataset = DICOMDataset(data_root_dir=self.series_slide_fileset_path
                                           , metadata_df=train_slide_data
@@ -235,6 +344,15 @@ class SeriesDataManager:
                                           , base_transform=self.base_transform
                                           )
         self.valid_dataloader = torch.utils.data.DataLoader(self.valid_dataset, self.batch_size)
+
+        self.valid_sub_dataset = DICOMDataset(data_root_dir=self.series_slide_fileset_path
+                                          , metadata_df=valid_slide_sub_data
+                                          , localizer_df=self.data_localizer_df
+                                          , roi_crop_info=self.roi_crop_info
+                                          , num_label_classes=self.num_label_classes
+                                          , base_transform=self.base_transform
+                                          )
+        self.valid_sub_dataloader = torch.utils.data.DataLoader(self.valid_sub_dataset, self.batch_size)
 
     def get_excepted_indices(self) -> np.ndarray:
         indices = list[int]()
@@ -335,3 +453,6 @@ class SeriesDataManager:
     
     def get_valid_dataloader(self) -> torch.utils.data.DataLoader:
         return self.valid_dataloader
+    
+    def get_valid_sub_dataloader(self) -> torch.utils.data.DataLoader:
+        return self.valid_sub_dataloader

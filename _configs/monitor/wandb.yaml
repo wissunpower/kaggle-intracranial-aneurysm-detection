@@ -2,5 +2,5 @@ _target_: utils.monitor.wandb.WandbInitializer
 
 project: intracranial_aneurysm_detection
 save_dir: ${result_dir}
-name: ${train_target}_fold${data.common.current_fold}
+name: ${train_target}_fold${data.common.current_fold}_${train_target_postfix}
 group: ${experiment_name}

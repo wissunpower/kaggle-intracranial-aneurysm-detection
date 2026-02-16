@@ -2,16 +2,14 @@
 classifier:
   _target_: models.DiseaseDetector
 
-  input_volume_channels: ${data.common.input_channels}
-  in_channels: 3
   num_classes: ${data.common.num_classes}
 
   backbone:
     _target_: timm.create_model
     
     model_name: resnet18
-    pretrained: False
-    in_chans: ${model.classifier.in_channels}
+    pretrained: True
+    in_chans: 3
     global_pool: ''
     num_classes: 0
 

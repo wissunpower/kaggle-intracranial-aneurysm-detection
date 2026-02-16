@@ -1,0 +1,13 @@
+# @package _global_
+
+experiment_name: 00_02_09_apply_cropped_reference_setting
+
+train_target_postfix: class_label_5_fold
+
+data:
+  common:
+    current_fold: 0
+
+  classifier:
+    # num_fold: 4
+    aug_transform: null

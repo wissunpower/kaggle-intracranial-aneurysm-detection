@@ -13,5 +13,6 @@ seed: 42
 experiment_name: "default"
 
 train_target: ""
+train_target_postfix: ""
 
 result_dir: ${paths.result_dir}/${experiment_name}

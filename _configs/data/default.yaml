@@ -34,13 +34,13 @@ classifier:
   _target_: dataset.SeriesDataManager
 
   input_data_folder_name: train_windows1_test1
-  series_slide_fileset_path: D:/ml_data_resource/kaggle/intracranial_aneurysm_detection/raw_data_cropped
+  series_slide_fileset_path: H:/ml_data_resource/kaggle/intracranial_aneurysm_detection/raw_slide_data_cropped_loss_20260129_153709
   series_slide_metainfo_file_name: train_sampled_new.csv
   roi_crop_info_file_name: ''
   num_fold: 5
   current_fold: ${data.common.current_fold}
   batch_size: 16
-  num_series_slide: 12
+  num_series_slide: 48
 
   base_transform:
     _target_: dataset.NiftiTransform
