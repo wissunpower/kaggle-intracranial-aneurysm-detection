@@ -29,6 +29,7 @@ class VesselROIBBoxPredictor:
                  , input_data_path: str
                  , batch_size: int
                  , load_model_path: str
+                 , result_npy_file_name: str
                  , device: torch.device
                  , model: torch.nn.Module
                  ):
@@ -46,6 +47,7 @@ class VesselROIBBoxPredictor:
         self.batch_size = batch_size
 
         self.load_model_path = load_model_path
+        self.result_npy_file_name = result_npy_file_name
         self.device = device
         self.model = model
 
@@ -58,8 +60,7 @@ class VesselROIBBoxPredictor:
 
         valid_dataset.initialize(self.metadata_df)
         valid_dataloader = \
-            torch.utils.data.DataLoader(valid_dataset, self.batch_size
-                                        , shuffle=True, drop_last=True)
+            torch.utils.data.DataLoader(valid_dataset, self.batch_size)
         
         OUTPUTS, IDS = [], []
 
@@ -83,8 +84,9 @@ class VesselROIBBoxPredictor:
         print(np.mean(OUTPUTS[:, 1] - OUTPUTS[:, 0]))
         print(np.mean(OUTPUTS[:, 3] - OUTPUTS[:, 2]))
 
-        SID_TO_PRED = {iid.split('/')[-1].split('\\')[-1].split('_')[0]: output for iid, output in zip(IDS, OUTPUTS)}
-        np.save(self.data_root_path + 'series_to_crop_try5smallplusv7.npy', SID_TO_PRED)
+        SID_TO_PRED = {iid.split('/')[-1].split('\\')[-1].split('_')[0]: output
+                       for iid, output in zip(IDS, OUTPUTS)}
+        np.save(self.data_root_path + self.result_npy_file_name + '.npy', SID_TO_PRED)
         
         print("Predict complete.")
 
