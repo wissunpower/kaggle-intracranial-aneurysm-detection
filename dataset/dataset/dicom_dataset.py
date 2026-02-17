@@ -41,7 +41,7 @@ class DICOMDataset(torch.utils.data.Dataset):
         if self.aug_transform is not None:
             image = self.aug_transform(image)
         
-        image = torch.from_numpy(image).contiguous().half()
+        image = torch.from_numpy(image).contiguous().float()
         label = torch.from_numpy(multi_label).float()
 
         return image, label, uid

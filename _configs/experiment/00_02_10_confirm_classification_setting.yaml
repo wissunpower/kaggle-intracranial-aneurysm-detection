@@ -1,0 +1,9 @@
+# @package _global_
+
+experiment_name: 00_02_10_confirm_classification_setting
+
+train_target_postfix: ''
+
+data:
+  common:
+    current_fold: 0

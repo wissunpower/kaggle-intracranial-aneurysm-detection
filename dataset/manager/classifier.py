@@ -207,8 +207,7 @@ class SeriesDataManager:
                 continue
 
             # only negative case, positive indices included above
-            # num_slide = min(self.num_series_slide, len(group_df))
-            num_slide = self.num_series_slide
+            num_slide = min(self.num_series_slide, len(group_df))
             negative_indices = np.linspace(0, len(group_df) - 1, num_slide).astype(int)
             
             interest_slide_indices.extend(group_df.iloc[negative_indices].index)

@@ -18,13 +18,11 @@ class DiseaseDetector(torch.nn.Module):
 
         self.head = torch.nn.Linear(num_features, self.num_classes)
         
-        # gain = torch.nn.init.calculate_gain('linear')
-        # torch.nn.init.xavier_uniform_(self.head.weight, gain)
-        # self.head.bias.data.fill_(0)
+        gain = torch.nn.init.calculate_gain('linear')
+        torch.nn.init.xavier_uniform_(self.head.weight, gain)
+        self.head.bias.data.fill_(0)
     
     def forward(self, images: torch.Tensor) -> torch.Tensor:
-        images = torch.nan_to_num(images, 0, 0, 0)
-
         features = self.backbone(images)
 
         if len(features.shape) == 3:
@@ -33,8 +31,6 @@ class DiseaseDetector(torch.nn.Module):
             features = self.avg_pool(features).flatten(1, 3)
 
         logits = self.head(features)
-
-        logits = torch.nan_to_num(logits, 0, 0, 0)
 
         return logits
     

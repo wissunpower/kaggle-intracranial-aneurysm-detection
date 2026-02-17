@@ -40,7 +40,7 @@ classifier:
   num_fold: 5
   current_fold: ${data.common.current_fold}
   batch_size: 16
-  num_series_slide: 48
+  num_series_slide: 64
 
   base_transform:
     _target_: dataset.NiftiTransform
@@ -55,24 +55,24 @@ classifier:
     _target_: dataset.ImageMixedTransform
     
     augmentations:
-      random_brightness_contrast:
-        _target_: albumentations.RandomBrightnessContrast
-        p: 0.15
-      random_gamma:
-        _target_: albumentations.RandomGamma
-        p: 0.15
-      gauss_noise:
-        _target_: albumentations.GaussNoise
-        p: 0.15
-      shot_noise:
-        _target_: albumentations.ShotNoise
-        p: 0.15
-      additive_noise:
-        _target_: albumentations.AdditiveNoise
-        p: 0.15
-      multiplicative_noise:
-        _target_: albumentations.MultiplicativeNoise
-        p: 0.15
+      # random_brightness_contrast:
+      #   _target_: albumentations.RandomBrightnessContrast
+      #   p: 0.15
+      # random_gamma:
+      #   _target_: albumentations.RandomGamma
+      #   p: 0.15
+      # gauss_noise:
+      #   _target_: albumentations.GaussNoise
+      #   p: 0.15
+      # shot_noise:
+      #   _target_: albumentations.ShotNoise
+      #   p: 0.15
+      # additive_noise:
+      #   _target_: albumentations.AdditiveNoise
+      #   p: 0.15
+      # multiplicative_noise:
+      #   _target_: albumentations.MultiplicativeNoise
+      #   p: 0.15
       equalize:
         _target_: albumentations.Equalize
         p: 0.15
