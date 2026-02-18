@@ -230,6 +230,8 @@ class ClassifierTrainer:
                 logger.info('Save checkpoint.')
                 torch.save(model.state_dict(), os.path.join(model_save_folder, self.best_acc_checkpoint_name))
 
+                self.evaluator.acc_calculator.save_predict()
+
     def eval(self, model: torch.nn.Module) -> tuple[float, float, float]:
         model_eval = model if self.model_ema is None else self.model_ema
         model_eval.eval()

@@ -65,8 +65,6 @@ class DicomSeriesEvaluator:
         
         valid_accuracy = self.acc_calculator.calculate_by_group()
 
-        self.acc_calculator.save_predict()
-
         return valid_loss, valid_slide_accuracy, valid_accuracy
     
     def update_best_valid_loss(self, new_loss: float) -> bool:
