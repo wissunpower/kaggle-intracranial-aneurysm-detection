@@ -1,0 +1,26 @@
+# @package _global_
+
+defaults:
+  - _self_
+  - paths: default
+  - hydra: default
+
+experiment_name: select_classify_predict
+
+train_target: ""
+
+slide_metainfo_file_path: ${paths.data_root_dir}train_sampled_new.csv
+num_fold: ${len:${fold_result_root_paths}}
+fold_result_root_paths: [
+  './_results/00_02_10_confirm_classification_setting/predict/20260216_192615',
+  './_results/00_02_10_confirm_classification_setting/predict/20260217_152413',
+  './_results/00_02_10_confirm_classification_setting/predict/20260218_110538',
+  './_results/00_02_10_confirm_classification_setting/predict/20260219_031045',
+  './_results/00_02_10_confirm_classification_setting/predict/20260219_224753',
+]
+use_soft_target: False
+positive_threshold: 1.6
+positive_data_output_path: ${paths.data_root_dir}train_sampled_positive.csv
+# positive_data_output_path: ${paths.data_root_dir}train_sampled_soft_target.csv
+
+result_dir: ${paths.result_dir}/${experiment_name}
