@@ -37,6 +37,8 @@ classifier:
   series_slide_fileset_path: H:/ml_data_resource/kaggle/intracranial_aneurysm_detection/raw_slide_data_cropped_loss_20260129_153709
   series_slide_metainfo_file_name: train_sampled_new.csv
   roi_crop_info_file_name: ''
+  expand_metainfo_file_name: ''
+  use_soft_target: False
   num_fold: 5
   current_fold: ${data.common.current_fold}
   batch_size: 16

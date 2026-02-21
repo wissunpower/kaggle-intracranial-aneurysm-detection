@@ -69,6 +69,8 @@ class SeriesDataManager:
                  , series_slide_fileset_path: str
                  , series_slide_metainfo_file_name: str
                  , roi_crop_info_file_name: str
+                 , expand_metainfo_file_name: str
+                 , use_soft_target: bool
                  , num_fold: int
                  , current_fold: int
                  , batch_size: int
@@ -91,6 +93,14 @@ class SeriesDataManager:
             self.roi_crop_info = np.load(roi_crop_info_file_path, allow_pickle=True).item()
         except:
             self.roi_crop_info = None
+
+        expand_metainfo_file_path = os.path.join(self.data_root_path, expand_metainfo_file_name)
+        try:
+            self.expand_metainfo_df = pd.read_csv(expand_metainfo_file_path)
+        except:
+            self.expand_metainfo_df = None
+
+        self.use_soft_target = use_soft_target
 
         self.num_label_classes = data_common_cfg.num_classes
 
@@ -236,14 +246,15 @@ class SeriesDataManager:
 
         return train_slide_data, valid_slide_data, valid_slide_sub_data
     
-    def build_dataset_metaInfo_my(self) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    def build_dataset_expand_metaInfo(self) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         train_indices = self.get_train_data_indices()
         valid_indices = self.get_valid_data_indices()
 
         train_data = self.data_label_df.iloc[train_indices]
         valid_data = self.data_label_df.iloc[valid_indices]
 
-        interest_slide_indices = []
+        train_sample = []
+        valid_positive_slide_indices = []
         localizer_df_group = self.data_localizer_df.groupby('SeriesInstanceUID')
 
         for _, group_pair in tqdm(enumerate(localizer_df_group)):
@@ -261,11 +272,25 @@ class SeriesDataManager:
                     slide_index = self.series_slide_metainfo_df[
                         (self.series_slide_metainfo_df.InstanceUID == slide_df.SOPInstanceUID)
                         ].index[0]
+
+                if series_uid in train_data.SeriesInstanceUID.values.tolist():
+                    train_sample.append(self.series_slide_metainfo_df.iloc[[slide_index]])
                 
-                interest_slide_indices.append(slide_index)
+                if series_uid in valid_data.SeriesInstanceUID.values.tolist():
+                    valid_positive_slide_indices.append(slide_index)
+
+        if self.expand_metainfo_df is not None:
+            for _, expand_row in tqdm(self.expand_metainfo_df.iterrows()):
+                if expand_row.SeriesUID in train_data.SeriesInstanceUID.values.tolist():
+                    train_sample.append(pd.DataFrame([expand_row]))
+                
+                if expand_row.SeriesUID in valid_data.SeriesInstanceUID.values.tolist() \
+                    and not self.use_soft_target:
+                    valid_positive_slide_indices.append(expand_row.total_index)
 
         train_slide_indices = []
         valid_slide_indices = []
+        interest_slide_indices = []
         metainfo_df_group = self.series_slide_metainfo_df.groupby('SeriesUID')
 
         for _, group_pair in enumerate(metainfo_df_group):
@@ -282,16 +307,12 @@ class SeriesDataManager:
 
             # only negative case, positive indices included above
             num_slide = min(self.num_series_slide, len(group_df))
-            
-            target_index_start = 0
-            target_index_end = len(group_df) - 1
-
-            if (target_index_end - target_index_start) >= self.num_series_slide:
-                negative_indices = np.linspace(target_index_start, target_index_end, num_slide).astype(int)
-            else:
-                negative_indices = np.arange(num_slide)
+            negative_indices = np.linspace(0, len(group_df) - 1, num_slide).astype(int)
             
             interest_slide_indices.extend(group_df.iloc[negative_indices].index)
+
+            if series_uid in train_data.SeriesInstanceUID.values.tolist():
+                train_sample.append(group_df.iloc[negative_indices])
         
         assert len(self.series_slide_metainfo_df) == (len(train_slide_indices) + len(valid_slide_indices)) \
             , 'Missing index exists.'
@@ -301,17 +322,14 @@ class SeriesDataManager:
         interest_mask = np.full(NUM_TOTAL_SLIDE, False)
         interest_mask[interest_slide_indices] = True
 
-        train_interest_mask = np.full(NUM_TOTAL_SLIDE, False)
-        train_interest_mask[train_slide_indices] = True
-        train_interest_mask = train_interest_mask & interest_mask
-
         valid_interest_mask = np.full(NUM_TOTAL_SLIDE, False)
         valid_interest_mask[valid_slide_indices] = True
         valid_not_interest_mask = valid_interest_mask
         valid_interest_mask = valid_interest_mask & interest_mask
-        valid_not_interest_mask = valid_not_interest_mask & (~interest_mask)
+        valid_interest_mask[valid_positive_slide_indices] = True
+        valid_not_interest_mask = valid_not_interest_mask & (~valid_interest_mask)
 
-        train_slide_data = self.series_slide_metainfo_df[train_interest_mask]
+        train_slide_data = pd.concat(train_sample).reset_index(drop=True)
         valid_slide_data = self.series_slide_metainfo_df[valid_interest_mask]
         valid_slide_sub_data = self.series_slide_metainfo_df[valid_not_interest_mask]
 
@@ -321,7 +339,7 @@ class SeriesDataManager:
         if fold_index is not None:
             self.current_fold = int(np.clip(fold_index, 0, self.num_fold - 1))
 
-        train_slide_data, valid_slide_data, valid_slide_sub_data = self.build_dataset_metaInfo()
+        train_slide_data, valid_slide_data, valid_slide_sub_data = self.build_dataset_expand_metaInfo()
  
         self.train_dataset = DICOMDataset(data_root_dir=self.series_slide_fileset_path
                                           , metadata_df=train_slide_data
@@ -330,6 +348,7 @@ class SeriesDataManager:
                                           , num_label_classes=self.num_label_classes
                                           , base_transform=self.base_transform
                                           , aug_transform=self.aug_transform
+                                          , use_soft_target=self.use_soft_target
                                           )
         self.train_dataloader = \
             torch.utils.data.DataLoader(self.train_dataset, self.batch_size

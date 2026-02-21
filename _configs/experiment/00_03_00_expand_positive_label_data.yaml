@@ -1,0 +1,14 @@
+# @package _global_
+
+experiment_name: 00_03_00_expand_positive_label_data
+
+train_target_postfix: ''
+
+data:
+  common:
+    current_fold: 0
+  
+  classifier:
+    expand_metainfo_file_name: train_sampled_positive.csv
+    use_soft_target: False
+    # num_series_slide: 2

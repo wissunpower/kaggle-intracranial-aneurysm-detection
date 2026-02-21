@@ -15,6 +15,7 @@ class DICOMDataset(torch.utils.data.Dataset):
                  , num_label_classes: int
                  , base_transform=None
                  , aug_transform=None
+                 , use_soft_target: bool=False
         ):
         self.metadata_df = metadata_df
         self.localizer_df = localizer_df
@@ -22,6 +23,7 @@ class DICOMDataset(torch.utils.data.Dataset):
         self.num_label_classes = num_label_classes
         self.base_transform = base_transform
         self.aug_transform = aug_transform
+        self.use_soft_target = use_soft_target
 
         self.col_to_idx \
             = {x: i for i, x in enumerate(self.metadata_df.columns[6:6+self.num_label_classes-1])}
@@ -83,15 +85,19 @@ class DICOMDataset(torch.utils.data.Dataset):
         # else:
         #     print(f'uid: {row.SeriesUID}_I_{row.InstanceNumber}, min: {image.min()}, max: {image.max()}, gap: {(image.max() - image.min())}')
 
-        localizer_label_rows = self.localizer_df[self.localizer_df.SOPInstanceUID == row.InstanceUID]
-        if len(localizer_label_rows) > 0:
-            multi_label = np.zeros((self.num_label_classes,))
-            for _, localizer_label_row in localizer_label_rows.iterrows():
-                loc = localizer_label_row.location.replace(' ', '_').lower()
-                multi_label[self.col_to_idx[loc]] = 1.
-            multi_label[-1] = row.aneurysm_present
+        if self.use_soft_target and row.soft_target and row.soft_target is not np.nan:
+            soft_target = eval(row.soft_target)
+            multi_label = np.array(soft_target)
         else:
-            multi_label = row[6 : 6 + self.num_label_classes].to_numpy()
+            localizer_label_rows = self.localizer_df[self.localizer_df.SOPInstanceUID == row.InstanceUID]
+            if len(localizer_label_rows) > 0:
+                multi_label = np.zeros((self.num_label_classes,))
+                for _, localizer_label_row in localizer_label_rows.iterrows():
+                    loc = localizer_label_row.location.replace(' ', '_').lower()
+                    multi_label[self.col_to_idx[loc]] = 1.
+                multi_label[-1] = row.aneurysm_present
+            else:
+                multi_label = row[6 : 6 + self.num_label_classes].to_numpy()
 
         return image.astype(np.float32) \
             , multi_label.astype(np.float32) \
