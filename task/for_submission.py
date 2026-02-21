@@ -64,8 +64,7 @@ CROP_MODEL_CHECKPOINT_FILE = "./_results/00_02_09_apply_cropped_reference_settin
 
 CLASSIFIER_BACKBONE_MODEL_NAME = 'resnet18'
 CLASSIFIER_INPUT_SIZE = [352, 352]
-# CLASSIFIER_MODEL_CHECKPOINT_FILE = "./_results/00_02_09_apply_cropped_reference_setting/checkpoints/diseasedetector_20260211_192751/best_acc_checkpoint_diseasedetector_00_20260211_192751.pth"
-CLASSIFIER_MODEL_CHECKPOINT_FILE = "./_results/00_02_09_apply_cropped_reference_setting/checkpoints/diseasedetector_20260212_113942/best_acc_checkpoint_diseasedetector_00_20260212_113942.pth"
+CLASSIFIER_MODEL_CHECKPOINT_FILE = "./_results/00_03_00_expand_positive_label_data/checkpoints/diseasedetector_20260220_182555/best_acc_checkpoint_diseasedetector_00_20260220_182555.pth"
 
 PREPROCESS_CROP_OPT = DictConfig({
     'enable': False,
@@ -251,7 +250,7 @@ def crop_preprocessing(volume):
     
     volume = volume.reshape(CROP_DEPTH_SIZE//IN_CHANNELS, IN_CHANNELS, volume.shape[1], volume.shape[2])
         
-    volume = torch.as_tensor((volume - volume.min()) / (volume.max() - volume.min())).half()
+    volume = torch.as_tensor((volume - volume.min()) / (volume.max() - volume.min())).float()
     
     volume = torch.nn.functional.interpolate(volume, CROP_INPUT_SIZE, mode='bilinear')
     
@@ -290,7 +289,7 @@ def bin_preprocessing(volume: np.ndarray) -> torch.Tensor:
     d = volume.shape[0]
     vmin = volume.view(d, -1).min(dim=1).values.view(d, 1, 1, 1)
     vmax = volume.view(d, -1).max(dim=1).values.view(d, 1, 1, 1)
-    volume = ((volume - vmin) / (vmax - vmin + 1e-8)).half()
+    volume = ((volume - vmin) / (vmax - vmin + 1e-8)).float()
     
     volume = torch.nn.functional.interpolate(volume, CLASSIFIER_INPUT_SIZE, mode='bilinear')
 
