@@ -1,9 +1,9 @@
 # Intracranial Aneurysm Detection
-![main screenshot](https://github.com/wissunpower/kaggle-intracranial-aneurysm-detection/tree/main/docs/source/_static/img/kaggle_competitions_overview.png)
+![main screenshot](https://github.com/wissunpower/kaggle-intracranial-aneurysm-detection/raw/main/docs/source/_static/img/kaggle_competitions_overview.png)
 
 --------------------------------------------------------------------
 
-북미영상의학회(https://www.rsna.org/)에서 Kaggle을 통해 주최한 뇌동맥류 탐지 경연에 참가하여 작업한 내용을 담고 있습니다.
+[북미영상의학회](https://www.rsna.org/)에서 Kaggle을 통해 주최한 뇌동맥류 탐지 경연에 참가하여 작업한 내용을 담고 있습니다.
 
 #### [Kaggle Competition 링크](https://www.kaggle.com/competitions/rsna-intracranial-aneurysm-detection)
 
@@ -61,7 +61,7 @@ CT, MRI와 같은 의학 영상자료를 통해 해당 질환의 발현 및 그 
 + 한계
   - 필자의 개발 환경 한계로 인해 nnUNet을 온전히 사용할 수 없었고, 첫번째 semantic segmentation stage 를 완료할 수 없었습니다.
     - 필자의 개발 환경
-    ![gpu_info](https://github.com/wissunpower/kaggle-intracranial-aneurysm-detection/tree/main/docs/source/_static/img/nvidia_smi_result.png)
+    ![gpu_info](https://github.com/wissunpower/kaggle-intracranial-aneurysm-detection/raw/main/docs/source/_static/img/nvidia_smi_result.png)
   - [nnUNet 사용을 위한 하드웨어 권장 사양](https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/installation_instructions.md)
   - nnUNet preprocess 로 얻은 하이퍼파라미터에서 batch_size나 patch_size를 낮추어야만 겨우 학습을 진행할 수 있었으며,
   - 그래도 일부 데이터는 학습과정에서 exception이 발생하였고, 결정적으로 학습 완료 후 혈관 segment 및 ROI 를 추출하기 위한 inference 를 진행할 수 없었습니다.
@@ -151,7 +151,7 @@ CT, MRI와 같은 의학 영상자료를 통해 해당 질환의 발현 및 그 
 + 추론 : 실제 의학 영상 자료에 대한 모델 사용 사례
   - ./task/for_submission.py
 
-순서에 기반한 보다 자세한 안내는 [이곳](https://github.com/wissunpower/kaggle-intracranial-aneurysm-detection/tree/main/task/README.md)에서 확인하실 수 있습니다.
+순서에 기반한 보다 자세한 안내는 [이곳](https://github.com/wissunpower/kaggle-intracranial-aneurysm-detection/tree/main/task)에서 확인하실 수 있습니다.
 
 ## 부록 : debugging configuration launch.json for vscode
 ```
