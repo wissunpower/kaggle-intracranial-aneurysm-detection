@@ -1,0 +1,18 @@
+# @package _global_
+
+experiment_name: 00_03_01_expand_soft_target_label_data
+
+train_target_postfix: ''
+
+data:
+  common:
+    current_fold: 0
+  
+  classifier:
+    expand_metainfo_file_name: train_sampled_soft_target.csv
+    use_soft_target: True
+    # num_series_slide: 2
+
+trainer:
+  classifier:
+    max_epoch: 8

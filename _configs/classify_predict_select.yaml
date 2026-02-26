@@ -12,15 +12,15 @@ train_target: ""
 slide_metainfo_file_path: ${paths.data_root_dir}train_sampled_new.csv
 num_fold: ${len:${fold_result_root_paths}}
 fold_result_root_paths: [
-  './_results/00_02_10_confirm_classification_setting/predict/20260216_192615',
-  './_results/00_02_10_confirm_classification_setting/predict/20260217_152413',
-  './_results/00_02_10_confirm_classification_setting/predict/20260218_110538',
-  './_results/00_02_10_confirm_classification_setting/predict/20260219_031045',
-  './_results/00_02_10_confirm_classification_setting/predict/20260219_224753',
+  './_results/00_03_00_expand_positive_label_data/predict/20260220_182555',
+  './_results/00_03_00_expand_positive_label_data/predict/20260221_143544',
+  './_results/00_03_00_expand_positive_label_data/predict/20260222_043101',
+  './_results/00_03_00_expand_positive_label_data/predict/20260223_004947',
+  './_results/00_03_00_expand_positive_label_data/predict/20260223_201131',
 ]
-use_soft_target: False
+use_soft_target: True
 positive_threshold: 1.6
-positive_data_output_path: ${paths.data_root_dir}train_sampled_positive.csv
-# positive_data_output_path: ${paths.data_root_dir}train_sampled_soft_target.csv
+# positive_data_output_path: ${paths.data_root_dir}train_sampled_positive.csv
+positive_data_output_path: ${paths.data_root_dir}train_sampled_soft_target.csv
 
 result_dir: ${paths.result_dir}/${experiment_name}
