@@ -15,7 +15,7 @@ predict:
   _target_: dataset.preprocess.VesselROIBBoxPredictor
 
   data_root_path: ${paths.data_root_dir}
-  input_data_path: F:/ml_data_resource/kaggle/intracranial_aneurysm_detection/train_windows1_test1/
+  input_data_path: ${predict.data_root_path}train_windows1_test1_/
   batch_size: 4
   load_model_path: ./_results/00_02_09_apply_cropped_reference_setting/checkpoints/vesselroibboxextractor_20260129_153709/best_loss_checkpoint_vesselroibboxextractor_00_20260129_153709.pth
   result_npy_file_name: series_crop_bbox_loss_20260129_153709

@@ -17,7 +17,7 @@ preprocess:
   segment_folder_name: segmentations
   seg_output_name: segmentations_window1
   total_output_name: train_windows1_test1_
-  series_slide_fileset_path: E:/ml_data_resource_backup/kaggle/intracranial_aneurysm_detection/train_sampled/
+  series_slide_fileset_path: ${paths.data_root_dir}raw_slide_data/
   series_slide_metainfo_file_name: 'train_sampled_new.csv'
   num_series_slide: 48
 

@@ -17,7 +17,7 @@ output_path: H:/ml_data_resource/kaggle/intracranial_aneurysm_detection/raw_slid
 
 slide_metainfo_gen:
     enable: true
-    output_path: H:/ml_data_resource/kaggle/intracranial_aneurysm_detection/raw_slide_data.csv
+    output_path: H:/ml_data_resource/kaggle/intracranial_aneurysm_detection/train_sampled_new.csv
 
 preprocess:
   _target_: dataset.preprocess.DICOMToNPYPreprocessor
