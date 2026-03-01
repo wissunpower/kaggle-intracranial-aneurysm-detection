@@ -8,6 +8,7 @@
 #### [Kaggle Competition 링크](https://www.kaggle.com/competitions/rsna-intracranial-aneurysm-detection)
 
 뇌동맥 일부가 약해져서 해당 부분이 풍선이나 꽈리처럼 부풀어 오르고 최악의 경우 파열되어 지주막하 뇌출혈과 같은 치명적 질환을 유발하는 것을 **뇌동맥류**라고 합니다.
+(질환에 대한 자세한 정보 [link](https://health.kdca.go.kr/healthinfo/biz/health/gnrlzHealthInfo/gnrlzHealthInfo/gnrlzHealthInfoView.do?cntnts_sn=5963))
 
 CT, MRI와 같은 의학 영상자료를 통해 해당 질환의 발현 및 그 가능성을 예측하는 것이 목적으로 결과는 뇌동맥류 존재 여부를 포함한 동맥류 위치 해당 여부를 다중 이진 분류 형식으로 표현됩니다.
 모델의 전체적인 성능은 총 14개의 label 각각에 대해 [AUC ROC 점수](https://developers.google.com/machine-learning/crash-course/classification/roc-and-auc?hl=ko)를 계산하는 방식으로 평가됩니다.
@@ -137,21 +138,29 @@ CT, MRI와 같은 의학 영상자료를 통해 해당 질환의 발현 및 그 
 + albumentations 2.0.8
 + matplotlib  3.10.6
 
-## 실행 안내
+## 주요 Script 안내
 대부분의 작업 단계는 ./task 폴더와 ./dataset/preprocess 폴더에 있는 python 스크립트를 실행하는 것으로 구성되어 있습니다. 또한 각각의 스크립트는 동일한 이름의 hydra 설정 파일(./_configs 폴더에 존재)로부터 실행하는데 필요한 정보를 입력 받으며, 크게 아래와 같이 구분됩니다.
+
+(순서에 기반한 보다 구체적인 실행 안내는 [이곳](https://github.com/wissunpower/kaggle-intracranial-aneurysm-detection/tree/main/task)에서 확인하실 수 있습니다.)
+
 + 데이터 전처리
   - ./dataset/preprocess/dcm_to_npy.py
+    - 4348개의 series 데이터를 개별 슬라이드 단위로 분리하여 시각적 이미지 정보는 npy 형식으로 저장하고, 모든 슬라이드 색인 정보를 각각의 row 단위로 매핑한 csv 파일을 생성합니다.
   - ./task/vessel_seg_to_roi_bbox_preprocess.py
+    - segmentations/ 안에 혈관 segment 정보가 있는 series 데이터에 한하여 혈관 ROI label(bounding box 형식)을 생성합니다. 또한 모든 4348건의 series 데이터에 대한 슬라이드 이미지 정보를 ROI 영역 추출의 입력 데이터로 사용할 수 있게 전처리하여 저장합니다.
 + 혈관 ROI 추출 모델 훈련 : Stage 1
   - ./task/vessel_roi_bbox_train.py
+    - 전처리된 segmentations/ 안의 혈관 segment 데이터로 **혈관 ROI bounding box를 예측하도록 모델을 훈련**시킵니다.
   - ./dataset/preprocess/vessel_roi_predict.py
+    - './task/vessel_roi_bbox_train.py' 에서 훈련된 모델을 사용하여 4348건의 모든 series 데이터에 대한 혈관 ROI bounding box 추출을 진행합니다.
 + 뇌동맥류 질환 존재 여부 및 위치에 대한 다중 이진 분류 훈련 : Stage 2
   - ./task/classifier_train.py
+    - './dataset/preprocess/dcm_to_npy.py' 에서 전처리된 슬라이드 단위의 데이터에 './dataset/preprocess/vessel_roi_predict.py' 과정에서 얻은 ROI 정보를 바탕으로 crop 한 후 **14개의 label에 대하여 이진 분류를 하도록 모델을 훈련**시킵니다.
   - ./task/classify_predict_select.py
+    - './task/classifier_train.py' 에서 훈련된 모델을 활용하여 임의로 설정한 특정 임계값을 기준으로 positive 슬라이드로 활용할 수 있는 데이터를 선별합니다. 또한 지식 증류(Knowledge Distillation) 기법을 위한 soft target 정보가 포함된 슬라이드 데이터를 생성할 수 도 있습니다.
 + 추론 : 실제 의학 영상 자료에 대한 모델 사용 사례
   - ./task/for_submission.py
-
-순서에 기반한 보다 자세한 안내는 [이곳](https://github.com/wissunpower/kaggle-intracranial-aneurysm-detection/tree/main/task)에서 확인하실 수 있습니다.
+    - kaggle 에서 제시하는 모델 평가 방법에 맞게 추론 과정을 구현하였습니다. 1건의 진단으로 획득한 DICOM 형식의 슬라이드 파일 집합을 하나의 폴더에 모아둔 경우 별다른 추가 작업없이 적용 가능합니다.
 
 ## 부록 : debugging configuration launch.json for vscode
 ```
