@@ -47,7 +47,7 @@ CT, MRI와 같은 의학 영상자료를 통해 해당 질환의 발현 및 그 
 
 머신러닝에 대한 역량을 증진하기 위해 대회 종료 후 상위 입상자의 솔루션을 분석한 후 주요 구성요소를 필자의 프로젝트에 이식하여 성능을 끌어올리는 작업을 시도하였습니다.
 
-처음에는 1위에 입상한 **tomoon33**(https://www.kaggle.com/tomoon33)의 솔루션을 살펴보았습니다.
+처음에는 1위에 입상한 [tomoon33](https://www.kaggle.com/tomoon33)의 솔루션을 살펴보았습니다.
 #### RSNA2025 1st Place Review
 ##### [Kaggle Solution 링크](https://www.kaggle.com/competitions/rsna-intracranial-aneurysm-detection/writeups/1st-place-solution)
 ##### [GitHub Train Source Code 링크](https://github.com/uchiyama33/rsna2025_1st_place)
@@ -71,7 +71,7 @@ CT, MRI와 같은 의학 영상자료를 통해 해당 질환의 발현 및 그 
     - [Hydra for config composition](https://hydra.cc/docs/intro/) : 복잡한 설정 정보를 관리하는데 편의를 제공합니다.
     - [Weights & Biases](https://wandb.ai/site/ko/) : ML 결과를 관리하고 시각화하는데 도움을 줍니다.
 
-제한적인 개발 환경에서도 다룰 수 있는 솔루션을 찾다가 4위에 입상한 **Harshit Sheoran**(https://www.kaggle.com/harshitsheoran)의 솔루션을 확인할 수 있었습니다.
+제한적인 개발 환경에서도 다룰 수 있는 솔루션을 찾다가 4위에 입상한 [Harshit Sheoran](https://www.kaggle.com/harshitsheoran)의 솔루션을 확인할 수 있었습니다.
 #### RSNA2025 4st Place Review
 ##### [Kaggle Solution 링크](https://www.kaggle.com/competitions/rsna-intracranial-aneurysm-detection/writeups/4th-place-solution)
 ##### [Kaggle Train Source Code 링크](https://www.kaggle.com/datasets/harshitsheoran/rsna2025-training-code)

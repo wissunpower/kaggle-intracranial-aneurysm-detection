@@ -19,7 +19,7 @@
         1. ./task/classifier_train.py
     3. 훈련된 분류 모델을 바탕으로 positive 슬라이드 데이터 증강
         1. ./task/classify_predict_select.py
-    4. positive 슬라이드를 증강한 데이터에 추가하여 **이진 분류 모델 훈련**
+    4. positive 슬라이드를 증강한 데이터로 **이진 분류 모델 훈련**
         1. ./task/classifier_train.py
     5. 지식 증류(Knowledge Distillation) 방식의 soft target 정보 추출 후 데이터 증강
         1. ./task/classify_predict_select.py"
@@ -33,7 +33,7 @@
 ### 세부 설명
 ./task 폴더(현재 위치)와 ./dataset/preprocess 폴더에 있는 python 스크립트를 바탕으로 전체 작업을 실행하는 세부 방법은 아래와 같습니다.
 **주요 설정** 내용은 각 단계를 실행하는데 필요한 입력 데이터와 그에 따른 결과물과 직접적으로 관련된 사항을 주로 다루고 있습니다.
-신경망 모델 종류와 이와 관련된 optimizer, 학습률 scheduler 같은 설정은 실행 의도에 따라 자유롭게 변경 가능하여 자세한 설명은 생략하였습니다.
+신경망 모델 종류와 이와 관련된 optimizer, 학습률 scheduler 같은 설정은 실행 의도에 따라 자유롭게 변경 가능하여 이에 대한 자세한 설명은 생략하였습니다.
 
 1. 데이터 전처리
     1. 4348개의 series 데이터를 개별 슬라이드 단위로 분리하여 시각적 이미지 정보는 npy 형식으로 저장하고, 모든 슬라이드 색인 정보를 각각의 row 단위로 매핑한 csv 파일을 생성합니다.
