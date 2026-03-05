@@ -1,4 +1,4 @@
-import os, sys, shutil
+import os, sys, shutil, copy
 from collections import Counter
 
 import numpy as np
@@ -64,7 +64,21 @@ CROP_MODEL_CHECKPOINT_FILE = "./_results/00_02_09_apply_cropped_reference_settin
 
 CLASSIFIER_BACKBONE_MODEL_NAME = 'resnet18'
 CLASSIFIER_INPUT_SIZE = [352, 352]
-CLASSIFIER_MODEL_CHECKPOINT_FILE = "./_results/00_03_00_expand_positive_label_data/checkpoints/diseasedetector_20260220_182555/best_acc_checkpoint_diseasedetector_00_20260220_182555.pth"
+CLASSIFIER_MODEL_CHECKPOINT_FILES = [
+    # best acc
+    # "./_results/00_03_01_expand_soft_target_label_data/checkpoints/diseasedetector_20260224_172817/best_acc_checkpoint_diseasedetector_00_20260224_172817.pth",
+    # "./_results/00_03_01_expand_soft_target_label_data/checkpoints/diseasedetector_20260226_150114/best_acc_checkpoint_diseasedetector_01_20260226_150114.pth",
+    # "./_results/00_03_01_expand_soft_target_label_data/checkpoints/diseasedetector_20260228_035434/best_acc_checkpoint_diseasedetector_02_20260228_035434.pth",
+    # "./_results/00_03_01_expand_soft_target_label_data/checkpoints/diseasedetector_20260301_225028/best_acc_checkpoint_diseasedetector_03_20260301_225028.pth",
+    # "./_results/00_03_01_expand_soft_target_label_data/checkpoints/diseasedetector_20260303_172040/best_acc_checkpoint_diseasedetector_04_20260303_172040.pth",
+
+    # best loss
+    "./_results/00_03_01_expand_soft_target_label_data/checkpoints/diseasedetector_20260224_172817/best_loss_checkpoint_diseasedetector_00_20260224_172817.pth",
+    "./_results/00_03_01_expand_soft_target_label_data/checkpoints/diseasedetector_20260226_150114/best_loss_checkpoint_diseasedetector_01_20260226_150114.pth",
+    "./_results/00_03_01_expand_soft_target_label_data/checkpoints/diseasedetector_20260228_035434/best_loss_checkpoint_diseasedetector_02_20260228_035434.pth",
+    "./_results/00_03_01_expand_soft_target_label_data/checkpoints/diseasedetector_20260301_225028/best_loss_checkpoint_diseasedetector_03_20260301_225028.pth",
+    "./_results/00_03_01_expand_soft_target_label_data/checkpoints/diseasedetector_20260303_172040/best_loss_checkpoint_diseasedetector_04_20260303_172040.pth",
+]
 
 PREPROCESS_CROP_OPT = DictConfig({
     'enable': False,
@@ -230,14 +244,18 @@ crop_model.load_state_dict(torch.load(CROP_MODEL_CHECKPOINT_FILE, map_location='
 crop_model = crop_model.to(device)
 # crop_model
 
+classifier_models = []
 
-classifier_backbone_model = timm.create_model(CLASSIFIER_BACKBONE_MODEL_NAME, pretrained=False, in_chans=IN_CHANNELS, global_pool='', num_classes=0)
-# classifier_backbone_model
+for model_checkpoint_file in CLASSIFIER_MODEL_CHECKPOINT_FILES:
+    classifier_backbone_model = timm.create_model(CLASSIFIER_BACKBONE_MODEL_NAME, pretrained=False, in_chans=IN_CHANNELS, global_pool='', num_classes=0)
+    # classifier_backbone_model
+    
+    classifier_model = DiseaseDetector(num_classes=NUM_CLASSES, backbone=classifier_backbone_model)
+    classifier_model.load_state_dict(torch.load(model_checkpoint_file, map_location='cpu'))
+    classifier_model = classifier_model.to(device)
+    # classifier_model
 
-classifier_model = DiseaseDetector(num_classes=NUM_CLASSES, backbone=classifier_backbone_model)
-classifier_model.load_state_dict(torch.load(CLASSIFIER_MODEL_CHECKPOINT_FILE, map_location='cpu'))
-classifier_model = classifier_model.to(device)
-# classifier_model
+    classifier_models.append(copy.deepcopy(classifier_model))
 
 
 preprocessor = DICOMToNPYPreprocessor(crop=PREPROCESS_CROP_OPT, resize=PREPROCESS_RESIZE_OPT)
@@ -298,30 +316,36 @@ def bin_preprocessing(volume: np.ndarray) -> torch.Tensor:
 def bin_predict(volume: np.ndarray) -> np.ndarray:
     
     volume = bin_preprocessing(volume)
-
-    classifier_model.eval()
     
     with torch.no_grad():
-        outputs = []
-        for i in range(0, volume.shape[0], BATCH_SIZE):
-            start_idx = i
-            end_idx = min(i + BATCH_SIZE, volume.shape[0])
-            batch_images = volume[start_idx:end_idx]
-            
-            batch_images = batch_images.to(device).float()
-            
-            #print(batch_images.shape, batch_images.dtype, batch_images.mean())
-            
-            with torch.autocast(device_type=str(device)):
-                logits = classifier_model(batch_images)
-            
-            outs = logits.float().sigmoid().detach().cpu().numpy()
-            
-            outputs.extend(outs)
-        
-        outputs = np.stack(outputs)
+        total_outputs = []
 
-    return outputs
+        for classifier_model in classifier_models:
+            classifier_model.eval()
+            
+            outputs = []
+            
+            for i in range(0, volume.shape[0], BATCH_SIZE):
+                start_idx = i
+                end_idx = min(i + BATCH_SIZE, volume.shape[0])
+                batch_images = volume[start_idx:end_idx]
+                
+                batch_images = batch_images.to(device).float()
+                
+                with torch.autocast(device_type=str(device)):
+                    logits = classifier_model(batch_images)
+                
+                outs = logits.float().sigmoid().detach().cpu().numpy()
+                
+                outputs.extend(outs)
+            
+            outputs = np.stack(outputs)
+
+            total_outputs.append(outputs)
+        
+        total_outputs = np.stack(total_outputs).mean(0)
+
+    return total_outputs
 
 def predict(series_path: str) -> pl.DataFrame | pd.DataFrame:
 
