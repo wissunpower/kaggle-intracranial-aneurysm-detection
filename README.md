@@ -41,12 +41,14 @@ CT, MRI와 같은 의학 영상자료를 통해 해당 질환의 발현 및 그 
 | 12 | Other Posterior Circulation | 기타 후방 순환 |
 | 13 | Aneurysm Present | 뇌동맥류 존재 여부 |
 
-## 활동 요약
+## 활동 흐름
+### 도전 결과
 대회가 진행되는 동안에는 4348개의 series 인스턴스 dcm 데이터를 32 x 416 x 416 크기의 npy 데이터로 변환하여 이를 입력으로 받아 14개의 이진 분류 label을 생성하는 방식을 적용하였습니다.
 3D 형식에 가까운 tensor 데이터를 기반으로 분류를 하는 단순 end to end 구조로 최종 공식 AUC ROC 점수는 0.54539에 도달하였습니다.(순위는 939위, https://www.kaggle.com/competitions/rsna-intracranial-aneurysm-detection/leaderboard) 사실상 무작위 추측 모델 수준에 머물렀습니다.
 
 머신러닝에 대한 역량을 증진하기 위해 대회 종료 후 상위 입상자의 솔루션을 분석한 후 주요 구성요소를 필자의 프로젝트에 이식하여 성능을 끌어올리는 작업을 시도하였습니다.
 
+### 상위 입상자 솔루션 분석
 처음에는 1위에 입상한 [tomoon33](https://www.kaggle.com/tomoon33)의 솔루션을 살펴보았습니다.
 #### RSNA2025 1st Place Review
 ##### [Kaggle Solution 링크](https://www.kaggle.com/competitions/rsna-intracranial-aneurysm-detection/writeups/1st-place-solution)
@@ -91,7 +93,14 @@ CT, MRI와 같은 의학 영상자료를 통해 해당 질환의 발현 및 그 
       - 학습 단위 슬라이드를 첫번째 stage 에서 추출된 ROI 정보를 바탕으로 crop 처리합니다.
     - 분류 학습은 1번으로 끝나지 않으며, 지식 증류(Knowledge Distillation) 기법을 통해 상대적으로 부족한 positive 슬라이드 데이터를 증강하면서 여러번 반복됩니다.
 
+### 개선 결과
 위와 같은 상위 입상자 솔루션의 분석 내용을 바탕으로 아래에 기술된 **인용 및 개선 사항**을 진행한 결과 모델의 성능을 향상시킬 수 있었습니다.
+#### [Kaggle LB score 변동 현황](https://www.kaggle.com/competitions/rsna-intracranial-aneurysm-detection/leaderboard?tab=public)
++ 점수 추이(Public 기준) : 0.52871 -> **0.74297**
++ [Submission Notebook](https://www.kaggle.com/code/wissunpower/intracranial-aneurysm-detection-eval)
+![kaggle_leaderboard_result](https://github.com/wissunpower/kaggle-intracranial-aneurysm-detection/raw/main/docs/source/_static/img/kaggle_leaderboard_result.png)
+#### [주요 experiment 지표 확인(wandb)](https://api.wandb.ai/links/wissunpower-/bgizykp8)
+![wandb_report](https://github.com/wissunpower/kaggle-intracranial-aneurysm-detection/raw/main/docs/source/_static/img/wandb_report.png)
 
 ## 인용 및 개선 사항
 + ML 기능 관련
